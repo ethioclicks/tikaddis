@@ -7,11 +7,12 @@ void main() {
   runApp(const ProviderScope(child: EthioPromoApp()));
 }
 
-class EthioPromoApp extends StatelessWidget {
+class EthioPromoApp extends ConsumerWidget {
   const EthioPromoApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'EthioPromo',
       debugShowCheckedModeBanner: false,
