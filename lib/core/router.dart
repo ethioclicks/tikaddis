@@ -16,7 +16,9 @@ import '../screens/influencer/create_account_screen.dart';
 import '../screens/influencer/promotions_screen.dart';
 import '../screens/browse/browse_screen.dart';
 import '../screens/browse/account_detail_screen.dart';
+import '../screens/promotions/create_promotion_screen.dart';
 import '../screens/promotions/my_promotions_screen.dart';
+import '../models/models.dart';
 
 /// Public routes that never require authentication.
 const _publicRoutes = <String>{
@@ -88,6 +90,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/browse/:accountId',
           builder: (context, state) => AccountDetailScreen(
               accountId: state.pathParameters['accountId']!)),
+      GoRoute(
+          path: '/browse/:accountId/promote',
+          builder: (context, state) => CreatePromotionScreen(
+                accountPublicId: state.pathParameters['accountId']!,
+                account: state.extra is InfluencerAccount
+                    ? state.extra as InfluencerAccount
+                    : null,
+              )),
       GoRoute(
           path: '/my-promotions',
           builder: (context, state) => const MyPromotionsScreen()),

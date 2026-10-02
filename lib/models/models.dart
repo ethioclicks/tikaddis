@@ -1,0 +1,258 @@
+// Dart models mirroring the EthioPromo backend entities & enums.
+// Field names match the Java JSON exactly so Dio responses parse directly.
+
+/// Account platform type — mirrors backend AccountTypeEnum.
+/// (No list endpoint on the server; the enum is fixed.)
+enum AccountType {
+  telegram('TELEGRAM', 'Telegram'),
+  youtube('YOUTUBE', 'YouTube'),
+  tiktok('TIKTOK', 'TikTok'),
+  facebook('FACEBOOK', 'Facebook'),
+  instagram('INSTAGRAM', 'Instagram');
+
+  const AccountType(this.wire, this.label);
+  final String wire; // exact enum name sent/received
+  final String label; // human label
+
+  static AccountType? fromWire(String? v) {
+    if (v == null) return null;
+    for (final t in AccountType.values) {
+      if (t.wire == v) return t;
+    }
+    return null;
+  }
+}
+
+/// Mirrors backend PriceTypeEnum.
+enum PriceType {
+  perClick('PER_CLICK', 'Per click'),
+  perView('PER_VIEW', 'Per view'),
+  perDay('PER_DAY', 'Per day');
+
+  const PriceType(this.wire, this.label);
+  final String wire;
+  final String label;
+
+  static PriceType? fromWire(String? v) {
+    if (v == null) return null;
+    for (final t in PriceType.values) {
+      if (t.wire == v) return t;
+    }
+    return null;
+  }
+}
+
+/// Mirrors backend PromotionRequestStatus (full lifecycle).
+enum PromotionStatus {
+  requested('REQUESTED', 'Requested'),
+  adminApproved('ADMIN_APPROVED', 'Admin approved'),
+  adminRejected('ADMIN_REJECTED', 'Admin rejected'),
+  ownerApproved('ACCOUNT_OWNER_APPROVED', 'Owner approved'),
+  ownerRejected('ACCOUNT_OWNER_REJECTED', 'Owner rejected'),
+  businessCanceled('BUSINESS_OWNER_CANCELED', 'Canceled'),
+  running('RUNNING', 'Running'),
+  fulfilled('FULFILLED', 'Fulfilled');
+
+  const PromotionStatus(this.wire, this.label);
+  final String wire;
+  final String label;
+
+  static PromotionStatus? fromWire(String? v) {
+    if (v == null) return null;
+    for (final s in PromotionStatus.values) {
+      if (s.wire == v) return s;
+    }
+    return null;
+  }
+}
+
+class AccountCategory {
+  final int? id;
+  final String? categoryName;
+  final String? categoryImageUrl;
+  final int? displayOrder;
+
+  AccountCategory({
+    this.id,
+    this.categoryName,
+    this.categoryImageUrl,
+    this.displayOrder,
+  });
+
+  factory AccountCategory.fromJson(Map<String, dynamic> j) => AccountCategory(
+        id: (j['id'] as num?)?.toInt(),
+        categoryName: j['categoryName'] as String?,
+        categoryImageUrl: j['categoryImageUrl'] as String?,
+        displayOrder: (j['displayOrder'] as num?)?.toInt(),
+      );
+}
+
+class PriceOptions {
+  final int? id;
+  final PriceType? priceType;
+  final double cost;
+  final String? remark;
+
+  PriceOptions({this.id, this.priceType, this.cost = 0, this.remark});
+
+  factory PriceOptions.fromJson(Map<String, dynamic> j) => PriceOptions(
+        id: (j['id'] as num?)?.toInt(),
+        priceType: PriceType.fromWire(j['priceType'] as String?),
+        cost: (j['cost'] as num?)?.toDouble() ?? 0,
+        remark: j['remark'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (priceType != null) 'priceType': priceType!.wire,
+        'cost': cost,
+        if (remark != null) 'remark': remark,
+      };
+}
+
+class InfluencerAccount {
+  final int? id;
+  final String? accountPublicId;
+  final String? title;
+  final String? description;
+  final String? accountURL;
+  final String? imageURL;
+  final AccountType? accountType;
+  final int audienceCount;
+  final int minViewPerPostCount;
+  final int maxViewPerPostCount;
+  final List<PriceOptions> priceOptions;
+  final bool approved;
+  final bool verified;
+  final AccountCategory? category;
+
+  InfluencerAccount({
+    this.id,
+    this.accountPublicId,
+    this.title,
+    this.description,
+    this.accountURL,
+    this.imageURL,
+    this.accountType,
+    this.audienceCount = 0,
+    this.minViewPerPostCount = 0,
+    this.maxViewPerPostCount = 0,
+    this.priceOptions = const [],
+    this.approved = false,
+    this.verified = false,
+    this.category,
+  });
+
+  double? get lowestCost {
+    if (priceOptions.isEmpty) return null;
+    return priceOptions.map((p) => p.cost).reduce((a, b) => a < b ? a : b);
+  }
+
+  factory InfluencerAccount.fromJson(Map<String, dynamic> j) =>
+      InfluencerAccount(
+        id: (j['id'] as num?)?.toInt(),
+        accountPublicId: j['accountPublicId'] as String?,
+        title: j['title'] as String?,
+        description: j['description'] as String?,
+        accountURL: j['accountURL'] as String?,
+        imageURL: j['imageURL'] as String?,
+        accountType: AccountType.fromWire(j['accountType'] as String?),
+        audienceCount: (j['audienceCount'] as num?)?.toInt() ?? 0,
+        minViewPerPostCount:
+            (j['minViewPerPostCount'] as num?)?.toInt() ?? 0,
+        maxViewPerPostCount:
+            (j['maxViewPerPostCount'] as num?)?.toInt() ?? 0,
+        priceOptions: ((j['priceOptions'] as List?) ?? const [])
+            .map((e) => PriceOptions.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        approved: j['approved'] as bool? ?? false,
+        verified: j['verified'] as bool? ?? false,
+        category: j['category'] is Map<String, dynamic>
+            ? AccountCategory.fromJson(j['category'] as Map<String, dynamic>)
+            : null,
+      );
+}
+
+class PromotionRequest {
+  final int? id;
+  final String? promotionRequestPublicId;
+  final InfluencerAccount? influencerAccount;
+  final List<DateTime> dateList;
+  final String? promotionText;
+  final String? promoImageURL;
+  final String? feedback;
+  final PromotionStatus? status;
+
+  PromotionRequest({
+    this.id,
+    this.promotionRequestPublicId,
+    this.influencerAccount,
+    this.dateList = const [],
+    this.promotionText,
+    this.promoImageURL,
+    this.feedback,
+    this.status,
+  });
+
+  factory PromotionRequest.fromJson(Map<String, dynamic> j) => PromotionRequest(
+        id: (j['id'] as num?)?.toInt(),
+        promotionRequestPublicId: j['promotionRequestPublicId'] as String?,
+        influencerAccount: j['influencerAccount'] is Map<String, dynamic>
+            ? InfluencerAccount.fromJson(
+                j['influencerAccount'] as Map<String, dynamic>)
+            : null,
+        dateList: ((j['dateList'] as List?) ?? const [])
+            .map((e) => DateTime.tryParse(e.toString()))
+            .whereType<DateTime>()
+            .toList(),
+        promotionText: j['promotionText'] as String?,
+        promoImageURL: j['promoImageURL'] as String?,
+        feedback: j['feedback'] as String?,
+        status: PromotionStatus.fromWire(j['promotionRequestStatus'] as String?),
+      );
+}
+
+/// Generic parser for Spring Data's `Page<T>` JSON shape.
+/// Falls back to a plain List if the server returns an array.
+class PageResult<T> {
+  final List<T> content;
+  final int totalElements;
+  final int totalPages;
+  final int number; // current page index
+  final bool last;
+
+  PageResult({
+    required this.content,
+    this.totalElements = 0,
+    this.totalPages = 0,
+    this.number = 0,
+    this.last = true,
+  });
+
+  static PageResult<T> fromJson<T>(
+    dynamic data,
+    T Function(Map<String, dynamic>) itemFromJson,
+  ) {
+    if (data is List) {
+      final items = data
+          .map((e) => itemFromJson(e as Map<String, dynamic>))
+          .toList();
+      return PageResult<T>(
+        content: items,
+        totalElements: items.length,
+        totalPages: 1,
+        last: true,
+      );
+    }
+    final map = data as Map<String, dynamic>;
+    final rawContent = (map['content'] as List?) ?? const [];
+    return PageResult<T>(
+      content: rawContent
+          .map((e) => itemFromJson(e as Map<String, dynamic>))
+          .toList(),
+      totalElements: (map['totalElements'] as num?)?.toInt() ?? 0,
+      totalPages: (map['totalPages'] as num?)?.toInt() ?? 0,
+      number: (map['number'] as num?)?.toInt() ?? 0,
+      last: map['last'] as bool? ?? true,
+    );
+  }
+}

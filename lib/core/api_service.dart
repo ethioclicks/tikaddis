@@ -51,8 +51,12 @@ class ApiService {
   Future<Response> getMyAccounts(String pid) =>
       _dio.get('/influencer/get-influencer-account-list', options: Options(headers: {'pid': pid}));
 
-  Future<Response> getApprovedAccounts() =>
-      _dio.get('/influencer/get-approved-influencer-accounts');
+  Future<Response> getApprovedAccounts({int page = 0, int size = 20}) =>
+      _dio.get('/influencer/get-approved-influencer-accounts',
+          queryParameters: {'page': page, 'size': size});
+
+  Future<Response> getAccountDetail(String accountPublicId) =>
+      _dio.get('/influencer/get-influencer-account/$accountPublicId');
 
   Future<Response> getPromotionRequests(String userPublicId) =>
       _dio.get('/influencer/get-influencer-promotion-request-list', options: Options(headers: {'userPublicId': userPublicId}));
@@ -66,9 +70,13 @@ class ApiService {
       _dio.post('/user/promotion/secure/create-promotion-request-as-business-owner', data: data,
           options: Options(headers: {'userPublicId': userPublicId, 'accountPublicId': accountPublicId}));
 
-  Future<Response> getMyPromotions(String pid, {String? status}) =>
-      _dio.get('/user/promotion/secure/get-my-promotion-requests',
-          options: Options(headers: {'pid': pid}), queryParameters: {'status': status});
+  Future<Response> getMyPromotions(String pid,
+      {String? status, int page = 0, int size = 20}) {
+    final query = <String, dynamic>{'page': page, 'size': size};
+    if (status != null) query['status'] = status;
+    return _dio.get('/user/promotion/secure/get-my-promotion-requests',
+        options: Options(headers: {'pid': pid}), queryParameters: query);
+  }
 
   // Categories
   Future<Response> getCategories() =>
