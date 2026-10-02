@@ -182,6 +182,69 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState();
   }
 
+  /// Step 1 of password reset: verify the phone exists and trigger an OTP
+  /// email. Backend: POST /public/phone-number-check (UserResetModel).
+  ///   200 -> OTP sent
+  ///   404 -> user not found
+  ///   429 -> too many OTP requests
+  Future<void> requestPasswordResetOtp(String phone) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _api.checkPhoneNumber(phone.trim());
+      state = state.copyWith(isLoading: false);
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false);
+      final code = e.response?.statusCode;
+      if (code == 404) {
+        throw AuthException('No account found with that phone number.');
+      }
+      if (code == 429) {
+        throw AuthException(
+            'Too many requests. Please wait a bit and try again.');
+      }
+      throw AuthException(_resetErrorMessage(e));
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      throw AuthException('Something went wrong. Please try again.');
+    }
+  }
+
+  /// Step 2 of password reset: submit OTP + new password.
+  /// Backend: POST /public/user-password-reset (UserResetModel).
+  ///   200 -> "Reset Success"
+  ///   400 -> bad request (e.g. wrong/expired OTP)
+  Future<void> resetPassword({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _api.resetPassword(phone.trim(), otp.trim(), newPassword);
+      state = state.copyWith(isLoading: false);
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false);
+      if (e.response?.statusCode == 400) {
+        final data = e.response?.data;
+        throw AuthException(
+          data is String && data.isNotEmpty
+              ? data
+              : 'The code is incorrect or has expired. Please try again.',
+        );
+      }
+      throw AuthException(_resetErrorMessage(e));
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      throw AuthException('Something went wrong. Please try again.');
+    }
+  }
+
+  String _resetErrorMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is String && data.isNotEmpty) return data;
+    return _genericNetworkMessage(e);
+  }
+
   String _loginErrorMessage(DioException e) {
     final code = e.response?.statusCode;
     if (code == 401 || code == 403) {
