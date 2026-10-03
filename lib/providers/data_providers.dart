@@ -43,6 +43,47 @@ final accountDetailProvider = FutureProvider.autoDispose
   throw Exception('Account not found');
 });
 
+/// The signed-in influencer's own accounts (GET /influencer/get-influencer-account-list).
+final myAccountsProvider =
+    FutureProvider.autoDispose<List<InfluencerAccount>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final pid = ref.read(authProvider).pid;
+  if (pid == null) return [];
+  final res = await api.getMyAccounts(pid);
+  final page = PageResult.fromJson<InfluencerAccount>(
+    res.data,
+    InfluencerAccount.fromJson,
+  );
+  return page.content;
+});
+
+/// Account categories for the create-account picker.
+final categoriesProvider =
+    FutureProvider.autoDispose<List<AccountCategory>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.getCategories();
+  final data = res.data;
+  final list = data is List ? data : (data['content'] as List? ?? const []);
+  return list
+      .map((e) => AccountCategory.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
+/// Promotion requests coming in to the influencer's accounts
+/// (GET /influencer/get-influencer-promotion-request-list, header userPublicId).
+final influencerRequestsProvider =
+    FutureProvider.autoDispose<List<PromotionRequest>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final pid = ref.read(authProvider).pid;
+  if (pid == null) return [];
+  final res = await api.getPromotionRequests(pid);
+  final page = PageResult.fromJson<PromotionRequest>(
+    res.data,
+    PromotionRequest.fromJson,
+  );
+  return page.content;
+});
+
 /// Business owner's own promotion requests, optionally filtered by status.
 final myPromotionsProvider = FutureProvider.autoDispose
     .family<List<PromotionRequest>, String?>((ref, status) async {
