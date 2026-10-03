@@ -17,8 +17,12 @@ class ProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.neutral50,
       appBar: AppBar(
-        title: const Text('Profile'),
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: const Text('Profile',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
             tooltip: 'Log out',

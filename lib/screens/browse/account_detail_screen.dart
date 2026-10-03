@@ -138,7 +138,7 @@ class _Detail extends StatelessWidget {
                 onPressed: account.accountPublicId == null
                     ? null
                     : () => context.push(
-                          '/browse/${account.accountPublicId}/promote',
+                          '/browse-detail/${account.accountPublicId}/promote',
                           extra: account,
                         ),
                 label: const Text('Request promotion'),

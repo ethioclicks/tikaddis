@@ -15,7 +15,13 @@ class BrowseScreen extends ConsumerWidget {
     final accounts = ref.watch(approvedAccountsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Browse creators')),
+      backgroundColor: AppColors.neutral50,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: const Text('Browse creators',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+      ),
       body: accounts.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -60,7 +66,7 @@ class _AccountCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: account.accountPublicId == null
             ? null
-            : () => context.push('/browse/${account.accountPublicId}'),
+            : () => context.push('/browse-detail/${account.accountPublicId}'),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

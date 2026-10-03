@@ -109,9 +109,10 @@ class ErrorView extends StatelessWidget {
 }
 
 class EmptyView extends StatelessWidget {
-  const EmptyView({super.key, required this.message, this.icon});
+  const EmptyView({super.key, required this.message, this.icon, this.action});
   final String message;
   final IconData? icon;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -121,14 +122,30 @@ class EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon ?? Icons.inbox_outlined,
-                size: 44, color: AppColors.neutral300),
-            const SizedBox(height: 12),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.07),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon ?? Icons.inbox_outlined,
+                  size: 40, color: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.neutral600),
+              style: const TextStyle(
+                color: AppColors.neutral600,
+                fontSize: 14.5,
+                height: 1.4,
+              ),
             ),
+            if (action != null) ...[
+              const SizedBox(height: 20),
+              action!,
+            ],
           ],
         ),
       ),

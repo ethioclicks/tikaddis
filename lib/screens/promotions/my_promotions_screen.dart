@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
@@ -22,7 +23,13 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
     final promotions = ref.watch(myPromotionsProvider(_filter?.wire));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My promotions')),
+      backgroundColor: AppColors.neutral50,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: const Text('My promotions',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+      ),
       body: Column(
         children: [
           _FilterBar(
@@ -39,10 +46,15 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
               ),
               data: (list) {
                 if (list.isEmpty) {
-                  return const EmptyView(
+                  return EmptyView(
                     icon: Icons.campaign_outlined,
                     message:
                         'No promotion requests yet.\nBrowse creators to send one.',
+                    action: ElevatedButton.icon(
+                      onPressed: () => context.go('/browse'),
+                      icon: const Icon(Icons.search, size: 18),
+                      label: const Text('Browse creators'),
+                    ),
                   );
                 }
                 return RefreshIndicator(
