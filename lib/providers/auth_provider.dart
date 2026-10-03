@@ -239,6 +239,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Request the influencer role. Backend: POST /user/become-influencer
+  ///   200 -> "Role updated to Candidate"
+  ///   404 -> "You can't apply for influncer position"
+  /// Returns the server's message on success.
+  Future<String> becomeInfluencer() async {
+    final pid = state.pid;
+    if (pid == null) {
+      throw AuthException('Your session expired. Please sign in again.');
+    }
+    state = state.copyWith(isLoading: true);
+    try {
+      final res = await _api.becomeInfluencer(pid);
+      state = state.copyWith(isLoading: false);
+      return res.data?.toString() ?? 'Request submitted.';
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false);
+      if (e.response?.statusCode == 404) {
+        final data = e.response?.data;
+        throw AuthException(
+          data is String && data.isNotEmpty
+              ? data
+              : "You can't apply to become an influencer right now.",
+        );
+      }
+      throw AuthException(_genericNetworkMessage(e));
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      throw AuthException('Something went wrong. Please try again.');
+    }
+  }
+
   String _resetErrorMessage(DioException e) {
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;

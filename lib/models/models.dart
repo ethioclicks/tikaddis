@@ -66,6 +66,54 @@ enum PromotionStatus {
   }
 }
 
+class UserAddress {
+  final String? street;
+  final String? city;
+
+  UserAddress({this.street, this.city});
+
+  factory UserAddress.fromJson(Map<String, dynamic> j) => UserAddress(
+        street: j['street'] as String?,
+        city: j['city'] as String?,
+      );
+
+  String get display =>
+      [street, city].where((e) => (e ?? '').isNotEmpty).join(', ');
+}
+
+/// Mirrors backend UserProfileModel returned by GET /user.
+class UserProfile {
+  final String? userPublicId;
+  final String? firstName;
+  final String? lastName;
+  final String? userName; // phone
+  final String? email;
+  final UserAddress? address;
+
+  UserProfile({
+    this.userPublicId,
+    this.firstName,
+    this.lastName,
+    this.userName,
+    this.email,
+    this.address,
+  });
+
+  String get fullName =>
+      [firstName, lastName].where((e) => (e ?? '').isNotEmpty).join(' ').trim();
+
+  factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
+        userPublicId: j['userPublicId'] as String?,
+        firstName: j['firstName'] as String?,
+        lastName: j['lastName'] as String?,
+        userName: j['userName'] as String?,
+        email: j['email'] as String?,
+        address: j['address'] is Map<String, dynamic>
+            ? UserAddress.fromJson(j['address'] as Map<String, dynamic>)
+            : null,
+      );
+}
+
 class AccountCategory {
   final int? id;
   final String? categoryName;

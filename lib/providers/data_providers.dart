@@ -3,6 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import 'auth_provider.dart';
 
+/// Current user's profile (GET /user).
+final profileProvider =
+    FutureProvider.autoDispose<UserProfile>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final pid = ref.read(authProvider).pid;
+  if (pid == null) {
+    throw Exception('Not signed in');
+  }
+  final res = await api.getProfile(pid);
+  final data = res.data;
+  if (data is Map<String, dynamic>) {
+    return UserProfile.fromJson(data);
+  }
+  throw Exception('Could not load profile');
+});
+
 /// Approved influencer accounts for the Browse screen.
 final approvedAccountsProvider =
     FutureProvider.autoDispose<List<InfluencerAccount>>((ref) async {
