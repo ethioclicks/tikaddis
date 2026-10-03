@@ -98,81 +98,82 @@ class _ProfileBody extends ConsumerWidget {
     final isLoading = ref.watch(authProvider).isLoading;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       children: [
-        Center(
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                name,
-                style: const TextStyle(
-                  color: AppColors.neutral900,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _RoleChips(roles: auth.roles),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        _InfoTile(
-          icon: Icons.phone_outlined,
-          label: 'Phone',
-          value: profile.userName ?? '—',
-        ),
-        _InfoTile(
-          icon: Icons.email_outlined,
-          label: 'Email',
-          value: (profile.email ?? '').isNotEmpty ? profile.email! : 'Not set',
-        ),
-        _InfoTile(
-          icon: Icons.location_on_outlined,
-          label: 'Address',
-          value: (profile.address?.display ?? '').isNotEmpty
-              ? profile.address!.display
-              : 'Not set',
-        ),
+        // Prominent account card.
+        _AccountCard(name: name, initials: initials, roles: auth.roles),
         const SizedBox(height: 24),
 
         // Become influencer CTA (hidden for existing influencers).
-        if (!auth.isInfluencer) _BecomeInfluencerCard(
-          isCandidate: _isCandidate,
-          isLoading: isLoading,
-          onApply: () => _becomeInfluencer(context, ref),
+        if (!auth.isInfluencer) ...[
+          _BecomeInfluencerCard(
+            isCandidate: _isCandidate,
+            isLoading: isLoading,
+            onApply: () => _becomeInfluencer(context, ref),
+          ),
+          const SizedBox(height: 24),
+        ],
+
+        const _SectionLabel('Account details'),
+        const SizedBox(height: 10),
+        _SectionCard(
+          children: [
+            _InfoRow(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: profile.userName ?? '—',
+            ),
+            _InfoRow(
+              icon: Icons.email_outlined,
+              label: 'Email',
+              value: (profile.email ?? '').isNotEmpty
+                  ? profile.email!
+                  : 'Not set',
+            ),
+            _InfoRow(
+              icon: Icons.location_on_outlined,
+              label: 'Address',
+              value: (profile.address?.display ?? '').isNotEmpty
+                  ? profile.address!.display
+                  : 'Not set',
+              last: true,
+            ),
+          ],
         ),
 
-        if (auth.isInfluencer)
-          _ActionTile(
-            icon: Icons.storefront_outlined,
-            title: 'Influencer area',
-            onTap: () => context.push('/influencer'),
+        if (auth.isInfluencer) ...[
+          const SizedBox(height: 24),
+          const _SectionLabel('Creator'),
+          const SizedBox(height: 10),
+          _SectionCard(
+            children: [
+              _ActionRow(
+                icon: Icons.storefront_outlined,
+                title: 'Influencer area',
+                subtitle: 'Manage channels and incoming requests',
+                onTap: () => context.push('/influencer'),
+                last: true,
+              ),
+            ],
           ),
+        ],
 
-        const SizedBox(height: 8),
-        _ActionTile(
-          icon: Icons.logout,
-          title: 'Log out',
-          danger: true,
-          onTap: () async {
-            await ref.read(authProvider.notifier).logout();
-            if (context.mounted) context.go('/login');
-          },
+        const SizedBox(height: 24),
+        const _SectionLabel('Session'),
+        const SizedBox(height: 10),
+        _SectionCard(
+          children: [
+            _ActionRow(
+              icon: Icons.logout,
+              title: 'Log out',
+              danger: true,
+              onTap: () async {
+                await ref.read(authProvider.notifier).logout();
+                if (context.mounted) context.go('/login');
+              },
+              last: true,
+            ),
+          ],
         ),
       ],
     );
@@ -309,25 +310,144 @@ class _BecomeInfluencerCard extends StatelessWidget {
   }
 }
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.label,
-    required this.value,
+/// Prominent account header card (avatar, name, role chips).
+class _AccountCard extends StatelessWidget {
+  const _AccountCard({
+    required this.name,
+    required this.initials,
+    required this.roles,
   });
-  final IconData icon;
-  final String label;
-  final String value;
+  final String name;
+  final String initials;
+  final List<String> roles;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primaryHover, AppColors.primary],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.20),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _RoleChips(roles: roles),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small purple section label (e.g. "Account details").
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+/// White rounded container grouping rows.
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.neutral200),
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.last = false,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: last
+            ? null
+            : const Border(
+                bottom: BorderSide(color: AppColors.neutral100),
+              ),
       ),
       child: Row(
         children: [
@@ -362,49 +482,69 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
     required this.icon,
     required this.title,
     required this.onTap,
+    this.subtitle,
     this.danger = false,
+    this.last = false,
   });
   final IconData icon;
   final String title;
+  final String? subtitle;
   final VoidCallback onTap;
   final bool danger;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
     final color = danger ? const Color(0xFFB91C1C) : AppColors.neutral900;
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.neutral200),
+            border: last
+                ? null
+                : const Border(
+                    bottom: BorderSide(color: AppColors.neutral100),
+                  ),
           ),
           child: Row(
             children: [
               Icon(icon, size: 20, color: color),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          color: AppColors.neutral500,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.neutral300),
+              if (!danger)
+                const Icon(Icons.chevron_right, color: AppColors.neutral300),
             ],
           ),
         ),

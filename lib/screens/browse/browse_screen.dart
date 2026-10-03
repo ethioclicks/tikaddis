@@ -16,46 +16,40 @@ class BrowseScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
-      body: Column(
-        children: [
-          const SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Browse creators',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: AppColors.neutral900,
-                  ),
-                ),
-              ),
-            ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async => ref.invalidate(approvedAccountsProvider),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
           ),
-          Expanded(
-            child: accounts.when(
-              loading: () => const LoadingView(),
-              error: (e, _) => ErrorView(
-                message: 'Could not load creators.',
-                onRetry: () => ref.invalidate(approvedAccountsProvider),
+          slivers: [
+            const CollapsingTitleBar(title: 'Browse creators'),
+            accounts.when(
+              loading: () => const SliverFillRemaining(
+                hasScrollBody: false,
+                child: LoadingView(),
+              ),
+              error: (e, _) => SliverFillRemaining(
+                hasScrollBody: false,
+                child: ErrorView(
+                  message: 'Could not load creators.',
+                  onRetry: () => ref.invalidate(approvedAccountsProvider),
+                ),
               ),
               data: (list) {
                 if (list.isEmpty) {
-                  return const EmptyView(
-                    icon: Icons.search_off,
-                    message: 'No approved creators yet.\nCheck back soon.',
+                  return const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyView(
+                      icon: Icons.search_off,
+                      message: 'No approved creators yet.\nCheck back soon.',
+                    ),
                   );
                 }
-                return RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: () async =>
-                      ref.invalidate(approvedAccountsProvider),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  sliver: SliverList.separated(
                     itemCount: list.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
@@ -64,8 +58,8 @@ class BrowseScreen extends ConsumerWidget {
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

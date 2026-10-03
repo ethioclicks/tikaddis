@@ -153,6 +153,62 @@ class EmptyView extends StatelessWidget {
   }
 }
 
+/// A large title that collapses into a compact pinned bar as the user
+/// scrolls — used on the main list tabs.
+class CollapsingTitleBar extends StatelessWidget {
+  const CollapsingTitleBar({super.key, required this.title, this.actions});
+
+  final String title;
+  final List<Widget>? actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverAppBar(
+      pinned: true,
+      backgroundColor: AppColors.neutral50,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0.5,
+      shadowColor: Colors.black12,
+      automaticallyImplyLeading: false,
+      expandedHeight: 108,
+      collapsedHeight: 56,
+      actions: actions,
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final top = MediaQuery.of(context).padding.top;
+          // Progress 0 (expanded) -> 1 (collapsed).
+          final maxH = 108 + top;
+          final minH = 56 + top;
+          final t = ((maxH - constraints.maxHeight) / (maxH - minH))
+              .clamp(0.0, 1.0);
+          final fontSize = 30 - (12 * t); // 30 -> 18
+          final leftPad = 20.0;
+          final bottomPad = 14 - (0 * t);
+          return Container(
+            color: AppColors.neutral50,
+            padding: EdgeInsets.only(
+              top: top,
+              left: leftPad,
+              bottom: bottomPad.toDouble(),
+            ),
+            alignment: Alignment.bottomLeft,
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: AppColors.neutral900,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// A clean, full-width 1px bottom border for app bars (no Divider indent
 /// artifacts).
 class AppBarBottomLine extends StatelessWidget implements PreferredSizeWidget {

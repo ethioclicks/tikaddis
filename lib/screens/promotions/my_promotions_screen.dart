@@ -24,71 +24,93 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
-      body: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'My promotions',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: AppColors.neutral900,
-                  ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async =>
+            ref.invalidate(myPromotionsProvider(_filter?.wire)),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            const CollapsingTitleBar(title: 'My promotions'),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _FilterHeaderDelegate(
+                child: _FilterBar(
+                  selected: _filter,
+                  onSelected: (s) => setState(() => _filter = s),
                 ),
               ),
             ),
-          ),
-          _FilterBar(
-            selected: _filter,
-            onSelected: (s) => setState(() => _filter = s),
-          ),
-          Expanded(
-            child: promotions.when(
-              loading: () => const LoadingView(),
-              error: (e, _) => ErrorView(
-                message: 'Could not load your promotions.',
-                onRetry: () =>
-                    ref.invalidate(myPromotionsProvider(_filter?.wire)),
+            promotions.when(
+              loading: () => const SliverFillRemaining(
+                hasScrollBody: false,
+                child: LoadingView(),
+              ),
+              error: (e, _) => SliverFillRemaining(
+                hasScrollBody: false,
+                child: ErrorView(
+                  message: 'Could not load your promotions.',
+                  onRetry: () =>
+                      ref.invalidate(myPromotionsProvider(_filter?.wire)),
+                ),
               ),
               data: (list) {
                 if (list.isEmpty) {
-                  return EmptyView(
-                    icon: Icons.campaign_outlined,
-                    message:
-                        'No promotion requests yet.\nBrowse creators to send one.',
-                    action: ElevatedButton.icon(
-                      onPressed: () => context.go('/browse'),
-                      icon: const Icon(Icons.search, size: 18),
-                      label: const Text('Browse creators'),
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyView(
+                      icon: Icons.campaign_outlined,
+                      message:
+                          'No promotion requests yet.\nBrowse creators to send one.',
+                      action: ElevatedButton.icon(
+                        onPressed: () => context.go('/browse'),
+                        icon: const Icon(Icons.search, size: 18),
+                        label: const Text('Browse creators'),
+                      ),
                     ),
                   );
                 }
-                return RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: () async =>
-                      ref.invalidate(myPromotionsProvider(_filter?.wire)),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  sliver: SliverList.separated(
                     itemCount: list.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
-                    itemBuilder: (_, i) =>
-                        _PromotionCard(request: list[i]),
+                    itemBuilder: (_, i) => _PromotionCard(request: list[i]),
                   ),
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Keeps the filter chips pinned below the collapsing title while scrolling.
+class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _FilterHeaderDelegate({required this.child});
+  final Widget child;
+
+  static const double _height = 60;
+
+  @override
+  double get minExtent => _height;
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(color: AppColors.neutral50, child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _FilterHeaderDelegate oldDelegate) =>
+      oldDelegate.child != child;
 }
 
 class _FilterBar extends StatelessWidget {
