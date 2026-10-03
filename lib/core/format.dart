@@ -28,6 +28,42 @@ class Fmt {
   static String date(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// Brand color per platform (used to theme the channel detail header).
+  static Color platformColor(AccountType? t) {
+    switch (t) {
+      case AccountType.telegram:
+        return const Color(0xFF229ED9);
+      case AccountType.youtube:
+        return const Color(0xFFFF0000);
+      case AccountType.tiktok:
+        return const Color(0xFF000000);
+      case AccountType.facebook:
+        return const Color(0xFF1877F2);
+      case AccountType.instagram:
+        return const Color(0xFFC13584);
+      case null:
+        return AppColors.primary;
+    }
+  }
+
+  /// Secondary color for a platform gradient header.
+  static Color platformColor2(AccountType? t) {
+    switch (t) {
+      case AccountType.telegram:
+        return const Color(0xFF1C7DB5);
+      case AccountType.youtube:
+        return const Color(0xFFCC0000);
+      case AccountType.tiktok:
+        return const Color(0xFF25F4EE);
+      case AccountType.facebook:
+        return const Color(0xFF0A5BC4);
+      case AccountType.instagram:
+        return const Color(0xFFF77737);
+      case null:
+        return AppColors.primaryHover;
+    }
+  }
+
   /// Brand icon per platform.
   static IconData platformIcon(AccountType? t) {
     switch (t) {
@@ -171,28 +207,22 @@ class CollapsingTitleBar extends StatelessWidget {
       scrolledUnderElevation: 0.5,
       shadowColor: Colors.black12,
       automaticallyImplyLeading: false,
-      expandedHeight: 108,
+      expandedHeight: 76,
       collapsedHeight: 56,
       actions: actions,
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
           final top = MediaQuery.of(context).padding.top;
           // Progress 0 (expanded) -> 1 (collapsed).
-          final maxH = 108 + top;
+          final maxH = 76 + top;
           final minH = 56 + top;
           final t = ((maxH - constraints.maxHeight) / (maxH - minH))
               .clamp(0.0, 1.0);
           final fontSize = 30 - (12 * t); // 30 -> 18
-          final leftPad = 20.0;
-          final bottomPad = 14 - (0 * t);
           return Container(
             color: AppColors.neutral50,
-            padding: EdgeInsets.only(
-              top: top,
-              left: leftPad,
-              bottom: bottomPad.toDouble(),
-            ),
-            alignment: Alignment.bottomLeft,
+            padding: EdgeInsets.only(top: top + 16, left: 20, bottom: 8),
+            alignment: Alignment.topLeft,
             child: Text(
               title,
               style: TextStyle(

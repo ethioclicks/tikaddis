@@ -11,24 +11,20 @@ import '../screens/auth/forgot_password_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/profile_screen.dart';
 import '../screens/influencer/influencer_dashboard_screen.dart';
-import '../screens/influencer/accounts_screen.dart';
 import '../screens/influencer/create_account_screen.dart';
+import '../screens/influencer/channel_detail_screen.dart';
 import '../screens/influencer/promotions_screen.dart';
 import '../screens/browse/browse_screen.dart';
 import '../screens/browse/account_detail_screen.dart';
 import '../screens/promotions/create_promotion_screen.dart';
 import '../screens/promotions/my_promotions_screen.dart';
 import '../screens/shell/home_shell.dart';
+import '../screens/admin/admin_shell.dart';
+import '../screens/admin/admin_overview_screen.dart';
+import '../screens/admin/admin_channels_screen.dart';
+import '../screens/admin/admin_promotions_screen.dart';
+import '../screens/admin/admin_users_screen.dart';
 import '../models/models.dart';
-
-/// Public routes that never require authentication.
-const _publicRoutes = <String>{
-  '/',
-  '/onboarding',
-  '/login',
-  '/register',
-  '/forgot-password',
-};
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -40,18 +36,42 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {
-      final loggedIn = ref.read(authProvider).isLoggedIn;
+      final auth = ref.read(authProvider);
       final location = state.matchedLocation;
-      final isPublic = _publicRoutes.contains(location);
 
-      if (!loggedIn && !isPublic) return '/login';
-      if (loggedIn &&
-          (location == '/login' ||
-              location == '/register' ||
-              location == '/onboarding')) {
-        return '/dashboard';
+      // Until startup state is restored, stay on the splash.
+      if (!auth.initialized) {
+        return location == '/' ? null : '/';
       }
-      return null;
+
+      // First launch: show the walkthrough once.
+      if (!auth.seenOnboarding) {
+        return location == '/onboarding' ? null : '/onboarding';
+      }
+
+      final loggedIn = auth.isLoggedIn;
+      final atAuthScreen = location == '/login' ||
+          location == '/register' ||
+          location == '/forgot-password';
+      final atEntry = location == '/' || location == '/onboarding';
+
+      if (!loggedIn) {
+        // Logged out: allow auth screens; send everything else to login.
+        return atAuthScreen ? null : '/login';
+      }
+
+      // Logged in. Admins live in the /admin area; others in the user area.
+      final isAdmin = auth.isAdmin;
+      final inAdminArea = location.startsWith('/admin');
+
+      if (isAdmin) {
+        if (atEntry || atAuthScreen || !inAdminArea) return '/admin';
+        return null;
+      } else {
+        if (inAdminArea) return '/dashboard';
+        if (atEntry || atAuthScreen) return '/dashboard';
+        return null;
+      }
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
@@ -84,7 +104,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/browse',
-                builder: (context, state) => const BrowseScreen(),
+                builder: (context, state) {
+                  // Role-aware 2nd tab: influencers manage their channels,
+                  // business users browse creators.
+                  final isInfluencer =
+                      ref.read(authProvider).isInfluencer;
+                  return isInfluencer
+                      ? const InfluencerDashboardScreen()
+                      : const BrowseScreen();
+                },
               ),
             ],
           ),
@@ -92,7 +120,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/my-promotions',
-                builder: (context, state) => const MyPromotionsScreen(),
+                builder: (context, state) {
+                  // Influencers see incoming requests to their channels;
+                  // business users see the promotions they've sent.
+                  final isInfluencer =
+                      ref.read(authProvider).isInfluencer;
+                  return isInfluencer
+                      ? const PromotionsScreen()
+                      : const MyPromotionsScreen();
+                },
               ),
             ],
           ),
@@ -104,6 +140,34 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+        ],
+      ),
+
+      // Admin shell (admins only; the redirect guard enforces this).
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AdminShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+                path: '/admin',
+                builder: (context, state) => const AdminOverviewScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+                path: '/admin/channels',
+                builder: (context, state) => const AdminChannelsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+                path: '/admin/promotions',
+                builder: (context, state) => const AdminPromotionsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+                path: '/admin/users',
+                builder: (context, state) => const AdminUsersScreen()),
+          ]),
         ],
       ),
 
@@ -124,20 +188,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               )),
       GoRoute(
           parentNavigatorKey: _rootKey,
-          path: '/influencer',
-          builder: (context, state) => const InfluencerDashboardScreen()),
-      GoRoute(
-          parentNavigatorKey: _rootKey,
-          path: '/influencer/accounts',
-          builder: (context, state) => const AccountsScreen()),
-      GoRoute(
-          parentNavigatorKey: _rootKey,
           path: '/influencer/accounts/new',
           builder: (context, state) => const CreateAccountScreen()),
       GoRoute(
           parentNavigatorKey: _rootKey,
-          path: '/influencer/promotions',
-          builder: (context, state) => const PromotionsScreen()),
+          path: '/influencer/accounts/edit',
+          builder: (context, state) => CreateAccountScreen(
+                editing: state.extra is InfluencerAccount
+                    ? state.extra as InfluencerAccount
+                    : null,
+              )),
+      GoRoute(
+          parentNavigatorKey: _rootKey,
+          path: '/channel/:accountId',
+          builder: (context, state) => ChannelDetailScreen(
+              accountId: state.pathParameters['accountId']!)),
     ],
   );
 });

@@ -20,33 +20,21 @@ class ProfileScreen extends ConsumerWidget {
       backgroundColor: AppColors.neutral50,
       body: Column(
         children: [
-          SafeArea(
+          const SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 8, 12),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Profile',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: AppColors.neutral900,
-                      ),
-                    ),
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Profile',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AppColors.neutral900,
                   ),
-                  IconButton(
-                    tooltip: 'Log out',
-                    icon: const Icon(Icons.logout,
-                        color: AppColors.neutral700),
-                    onPressed: () async {
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) context.go('/login');
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -72,6 +60,19 @@ class _ProfileBody extends ConsumerWidget {
   final AuthState auth;
 
   bool get _isCandidate => auth.roles.contains('CANDIDATE');
+
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => const _LogoutSheet(),
+    );
+    if (confirmed == true) {
+      await ref.read(authProvider.notifier).logout();
+      if (context.mounted) context.go('/login');
+    }
+  }
 
   Future<void> _becomeInfluencer(BuildContext context, WidgetRef ref) async {
     try {
@@ -149,9 +150,9 @@ class _ProfileBody extends ConsumerWidget {
             children: [
               _ActionRow(
                 icon: Icons.storefront_outlined,
-                title: 'Influencer area',
+                title: 'Creator space',
                 subtitle: 'Manage channels and incoming requests',
-                onTap: () => context.push('/influencer'),
+                onTap: () => context.go('/browse'),
                 last: true,
               ),
             ],
@@ -167,10 +168,7 @@ class _ProfileBody extends ConsumerWidget {
               icon: Icons.logout,
               title: 'Log out',
               danger: true,
-              onTap: () async {
-                await ref.read(authProvider.notifier).logout();
-                if (context.mounted) context.go('/login');
-              },
+              onTap: () => _confirmLogout(context, ref),
               last: true,
             ),
           ],
@@ -214,19 +212,18 @@ class _RoleChips extends StatelessWidget {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      alignment: WrapAlignment.center,
       children: shown
           .map((r) => Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   _label(r),
                   style: const TextStyle(
-                    color: AppColors.primaryHover,
+                    color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -408,24 +405,20 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// White rounded container grouping rows.
+/// Flat group of rows (Proton Settings style) — no card border, just rows
+/// with hairline dividers.
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.children});
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: Column(children: children),
-    );
+    return Column(children: children);
   }
 }
 
+/// Flat row: standalone icon + title/subtitle, hairline divider below
+/// (Proton Settings style).
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.icon,
@@ -441,18 +434,18 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
         border: last
             ? null
             : const Border(
-                bottom: BorderSide(color: AppColors.neutral100),
+                bottom: BorderSide(color: AppColors.neutral200),
               ),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.neutral500),
-          const SizedBox(width: 14),
+          Icon(icon, size: 26, color: AppColors.neutral700),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,17 +453,17 @@ class _InfoRow extends StatelessWidget {
                 Text(
                   label,
                   style: const TextStyle(
-                    color: AppColors.neutral500,
-                    fontSize: 12,
+                    color: AppColors.neutral900,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
-                    color: AppColors.neutral900,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.neutral500,
+                    fontSize: 13.5,
                   ),
                 ),
               ],
@@ -501,23 +494,24 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = danger ? const Color(0xFFB91C1C) : AppColors.neutral900;
+    final iconColor = danger ? const Color(0xFFB91C1C) : AppColors.neutral700;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             border: last
                 ? null
                 : const Border(
-                    bottom: BorderSide(color: AppColors.neutral100),
+                    bottom: BorderSide(color: AppColors.neutral200),
                   ),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(width: 14),
+              Icon(icon, size: 26, color: iconColor),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,7 +520,7 @@ class _ActionRow extends StatelessWidget {
                       title,
                       style: TextStyle(
                         color: color,
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -536,7 +530,7 @@ class _ActionRow extends StatelessWidget {
                         subtitle!,
                         style: const TextStyle(
                           color: AppColors.neutral500,
-                          fontSize: 12.5,
+                          fontSize: 13.5,
                         ),
                       ),
                     ],
@@ -545,6 +539,93 @@ class _ActionRow extends StatelessWidget {
               ),
               if (!danger)
                 const Icon(Icons.chevron_right, color: AppColors.neutral300),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A modern confirmation bottom sheet for logging out.
+class _LogoutSheet extends StatelessWidget {
+  const _LogoutSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Grab handle
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.neutral200,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Container(
+                width: 60,
+                height: 60,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEF2F2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout,
+                    color: Color(0xFFDC2626), size: 28),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Log out?',
+                style: TextStyle(
+                  color: AppColors.neutral900,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "You'll need to sign in again to use your account.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.neutral500,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Log out'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

@@ -36,14 +36,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _password.text,
           );
       if (!mounted) return;
-      final auth = ref.read(authProvider);
-      // Route by role. (No dedicated admin screen on mobile yet; admins use
-      // the standard dashboard for now.)
-      if (auth.isInfluencer) {
-        context.go('/influencer');
-      } else {
-        context.go('/dashboard');
-      }
+      // Admins land in the admin area; everyone else on Home. (The router
+      // guard also enforces this, so a wrong guess self-corrects.)
+      final isAdmin = ref.read(authProvider).isAdmin;
+      context.go(isAdmin ? '/admin' : '/dashboard');
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _error = e.message);

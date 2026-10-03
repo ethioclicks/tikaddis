@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../providers/auth_provider.dart';
 
 /// First-launch walkthrough. Clean, static slides — no animation. Copy is
 /// written around what the app actually does.
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
   int _page = 0;
 
@@ -51,10 +51,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool get _isLast => _page == _slides.length - 1;
 
   Future<void> _finish() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasSeenOnboarding', true);
-    if (!mounted) return;
-    context.go('/login');
+    // Persist the flag; the router's redirect guard will move us off
+    // onboarding automatically once state updates.
+    await ref.read(authProvider.notifier).completeOnboarding();
   }
 
   void _next() {

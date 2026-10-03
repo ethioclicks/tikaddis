@@ -114,6 +114,60 @@ class UserProfile {
       );
 }
 
+/// Admin-facing user summary (from GET /admin/user-list).
+class AdminUser {
+  final String? userPublicId;
+  final String? firstName;
+  final String? lastName;
+  final String? userName; // phone
+  final String? email;
+  final List<String> roles;
+  final bool enabled;
+  final bool locked;
+
+  AdminUser({
+    this.userPublicId,
+    this.firstName,
+    this.lastName,
+    this.userName,
+    this.email,
+    this.roles = const [],
+    this.enabled = true,
+    this.locked = false,
+  });
+
+  String get fullName =>
+      [firstName, lastName].where((e) => (e ?? '').isNotEmpty).join(' ').trim();
+
+  bool get isCandidate => roles.contains('CANDIDATE');
+  bool get isInfluencer => roles.contains('INFLUENCER');
+  bool get isAdmin => roles.contains('ADMIN');
+
+  factory AdminUser.fromJson(Map<String, dynamic> j) {
+    final rawRoles = j['roles'];
+    final roles = <String>[];
+    if (rawRoles is List) {
+      for (final r in rawRoles) {
+        if (r is Map && r['name'] != null) {
+          roles.add(r['name'].toString());
+        } else if (r != null) {
+          roles.add(r.toString());
+        }
+      }
+    }
+    return AdminUser(
+      userPublicId: j['userPublicId'] as String?,
+      firstName: j['firstName'] as String?,
+      lastName: j['lastName'] as String?,
+      userName: j['userName'] as String?,
+      email: j['email'] as String?,
+      roles: roles,
+      enabled: j['enabled'] as bool? ?? j['isEnabled'] as bool? ?? true,
+      locked: j['locked'] as bool? ?? j['isLocked'] as bool? ?? false,
+    );
+  }
+}
+
 class AccountCategory {
   final int? id;
   final String? categoryName;
@@ -133,6 +187,15 @@ class AccountCategory {
         categoryImageUrl: j['categoryImageUrl'] as String?,
         displayOrder: (j['displayOrder'] as num?)?.toInt(),
       );
+
+  // Value equality by id so dropdowns match across different instances
+  // (e.g. a pre-filled category vs. one from the fetched list).
+  @override
+  bool operator ==(Object other) =>
+      other is AccountCategory && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 class PriceOptions {
@@ -194,6 +257,22 @@ class InfluencerAccount {
     if (priceOptions.isEmpty) return null;
     return priceOptions.map((p) => p.cost).reduce((a, b) => a < b ? a : b);
   }
+
+  /// Body for the update endpoint (keeps accountPublicId + id so the
+  /// backend can locate the record).
+  Map<String, dynamic> toUpdateJson() => {
+        if (id != null) 'id': id,
+        if (accountPublicId != null) 'accountPublicId': accountPublicId,
+        'title': title,
+        'description': description,
+        'accountURL': accountURL,
+        if (imageURL != null) 'imageURL': imageURL,
+        if (accountType != null) 'accountType': accountType!.wire,
+        'audienceCount': audienceCount,
+        'minViewPerPostCount': minViewPerPostCount,
+        'maxViewPerPostCount': maxViewPerPostCount,
+        'priceOptions': priceOptions.map((p) => p.toJson()).toList(),
+      };
 
   factory InfluencerAccount.fromJson(Map<String, dynamic> j) =>
       InfluencerAccount(

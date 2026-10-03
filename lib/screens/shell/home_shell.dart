@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../providers/auth_provider.dart';
 
-/// Persistent navigation shell with a custom floating pill nav bar and a
-/// smooth cross-fade between tab pages.
-class HomeShell extends StatelessWidget {
+/// Persistent navigation shell with a custom floating pill nav bar.
+/// The second tab is role-aware: business users see "Browse", influencers
+/// see "Influencer" (creator management).
+class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
-
-  static const _items = [
-    _NavItem(Icons.home_rounded, 'Home'),
-    _NavItem(Icons.explore_rounded, 'Browse'),
-    _NavItem(Icons.campaign_rounded, 'Promotions'),
-    _NavItem(Icons.person_rounded, 'Profile'),
-  ];
 
   void _goBranch(int index) {
     navigationShell.goBranch(
@@ -25,12 +21,25 @@ class HomeShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isInfluencer = ref.watch(authProvider).isInfluencer;
+
+    final items = [
+      const _NavItem(Icons.home_rounded, 'Home'),
+      isInfluencer
+          ? const _NavItem(Icons.storefront_rounded, 'Channels')
+          : const _NavItem(Icons.explore_rounded, 'Browse'),
+      isInfluencer
+          ? const _NavItem(Icons.inbox_rounded, 'Requests')
+          : const _NavItem(Icons.campaign_rounded, 'Promotions'),
+      const _NavItem(Icons.person_rounded, 'Profile'),
+    ];
+
     return Scaffold(
       extendBody: true,
       body: navigationShell,
       bottomNavigationBar: _FloatingNavBar(
-        items: _items,
+        items: items,
         currentIndex: navigationShell.currentIndex,
         onTap: _goBranch,
       ),

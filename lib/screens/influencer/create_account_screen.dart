@@ -15,7 +15,10 @@ import '../../providers/data_providers.dart';
 ///          accountType, audienceCount, minViewPerPostCount,
 ///          maxViewPerPostCount, priceOptions:[{priceType,cost,remark}] }
 class CreateAccountScreen extends ConsumerStatefulWidget {
-  const CreateAccountScreen({super.key});
+  const CreateAccountScreen({super.key, this.editing});
+
+  /// When provided, the screen is in edit mode and updates this account.
+  final InfluencerAccount? editing;
 
   @override
   ConsumerState<CreateAccountScreen> createState() =>
@@ -46,10 +49,39 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
   AccountType? _accountType;
   AccountCategory? _category;
-  final List<_PriceRowData> _prices = [_PriceRowData(PriceType.perDay)];
+  final List<_PriceRowData> _prices = [];
 
   bool _submitting = false;
   String? _error;
+
+  bool get _isEdit => widget.editing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final a = widget.editing;
+    if (a != null) {
+      _title.text = a.title ?? '';
+      _description.text = a.description ?? '';
+      _url.text = a.accountURL ?? '';
+      _audience.text = a.audienceCount.toString();
+      _minViews.text = a.minViewPerPostCount.toString();
+      _maxViews.text = a.maxViewPerPostCount.toString();
+      _accountType = a.accountType;
+      _category = a.category;
+      for (final p in a.priceOptions) {
+        final row = _PriceRowData(p.priceType ?? PriceType.perDay);
+        row.cost.text = p.cost == p.cost.roundToDouble()
+            ? p.cost.toStringAsFixed(0)
+            : p.cost.toString();
+        row.remark.text = p.remark ?? '';
+        _prices.add(row);
+      }
+    }
+    if (_prices.isEmpty) {
+      _prices.add(_PriceRowData(PriceType.perDay));
+    }
+  }
 
   @override
   void dispose() {
@@ -93,31 +125,47 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
             })
         .toList();
 
+    final body = {
+      'title': _title.text.trim(),
+      'description': _description.text.trim(),
+      'accountURL': _url.text.trim(),
+      'accountType': _accountType!.wire,
+      'audienceCount': int.tryParse(_audience.text.trim()) ?? 0,
+      'minViewPerPostCount': int.tryParse(_minViews.text.trim()) ?? 0,
+      'maxViewPerPostCount': int.tryParse(_maxViews.text.trim()) ?? 0,
+      'priceOptions': priceOptions,
+    };
+
     setState(() => _submitting = true);
     try {
-      await ref.read(apiServiceProvider).createInfluencerAccount(
-        pid,
-        _category!.id!,
-        {
-          'title': _title.text.trim(),
-          'description': _description.text.trim(),
-          'accountURL': _url.text.trim(),
-          'accountType': _accountType!.wire,
-          'audienceCount': int.tryParse(_audience.text.trim()) ?? 0,
-          'minViewPerPostCount': int.tryParse(_minViews.text.trim()) ?? 0,
-          'maxViewPerPostCount': int.tryParse(_maxViews.text.trim()) ?? 0,
-          'priceOptions': priceOptions,
-        },
-      );
-      ref.invalidate(myAccountsProvider);
+      final api = ref.read(apiServiceProvider);
+      if (_isEdit) {
+        await api.updateInfluencerAccount({
+          'id': widget.editing!.id,
+          'accountPublicId': widget.editing!.accountPublicId,
+          ...body,
+        });
+        ref.invalidate(myAccountsProvider);
+        ref.invalidate(
+            accountDetailProvider(widget.editing!.accountPublicId!));
+      } else {
+        await api.createInfluencerAccount(pid, _category!.id!, body);
+        ref.invalidate(myAccountsProvider);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account submitted for approval.'),
+        SnackBar(
+          content: Text(_isEdit
+              ? 'Channel updated.'
+              : 'Account submitted for approval.'),
           backgroundColor: AppColors.primary,
         ),
       );
-      context.go('/influencer/accounts');
+      if (_isEdit) {
+        context.pop(); // back to the channel detail
+      } else {
+        context.go('/browse'); // back to the Channels list
+      }
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -150,7 +198,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     final categories = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add a channel')),
+      appBar: AppBar(
+          title: Text(_isEdit ? 'Edit channel' : 'Add a channel')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -185,34 +234,52 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   error: (e, _) => _InlineError(
                     onRetry: () => ref.invalidate(categoriesProvider),
                   ),
-                  data: (list) => DropdownButtonFormField<AccountCategory>(
-                    initialValue: _category,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.category_outlined),
-                      hintText: 'Select category',
-                    ),
-                    items: list
-                        .map((c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c.categoryName ?? 'Category'),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _category = v),
-                    validator: (v) => v == null ? 'Choose a category' : null,
-                  ),
+                  data: (list) {
+                    // Resolve the selected value to the exact instance in the
+                    // fetched list (by id equality) to satisfy the dropdown.
+                    final selected = _category == null
+                        ? null
+                        : list.firstWhere(
+                            (c) => c.id == _category!.id,
+                            orElse: () => _category!,
+                          );
+                    final items = {...list, ?selected}.toList();
+                    return DropdownButtonFormField<AccountCategory>(
+                      initialValue:
+                          items.contains(selected) ? selected : null,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.category_outlined),
+                        hintText: 'Select category',
+                      ),
+                      items: items
+                          .map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(c.categoryName ?? 'Category'),
+                              ))
+                          .toList(),
+                      onChanged: (v) => setState(() => _category = v),
+                      validator: (v) =>
+                          v == null ? 'Choose a category' : null,
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
 
                 _label('Title'),
                 TextFormField(
                   controller: _title,
+                  maxLength: 255,
                   decoration: const InputDecoration(
                     hintText: 'e.g. Addis Tech Daily',
+                    counterText: '',
                   ),
-                  validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Enter a title'
-                      : null,
+                  validator: (v) {
+                    final s = (v ?? '').trim();
+                    if (s.isEmpty) return 'Enter a title';
+                    if (s.length > 255) return 'Keep it under 255 characters';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -221,12 +288,35 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   controller: _description,
                   minLines: 2,
                   maxLines: 4,
+                  maxLength: 255,
                   decoration: const InputDecoration(
                     hintText: 'What is your channel about?',
+                    counterText: '',
                   ),
-                  validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Enter a description'
-                      : null,
+                  buildCounter: (context,
+                          {required currentLength,
+                          required isFocused,
+                          maxLength}) =>
+                      Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '$currentLength/$maxLength',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: currentLength >= (maxLength ?? 255)
+                            ? const Color(0xFFB91C1C)
+                            : AppColors.neutral500,
+                      ),
+                    ),
+                  ),
+                  validator: (v) {
+                    final s = (v ?? '').trim();
+                    if (s.isEmpty) return 'Enter a description';
+                    if (s.length > 255) {
+                      return 'Keep it under 255 characters';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -234,15 +324,19 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 TextFormField(
                   controller: _url,
                   keyboardType: TextInputType.url,
+                  maxLength: 255,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.link),
                     hintText: 'https://t.me/yourchannel',
+                    counterText: '',
                   ),
                   validator: (v) {
                     final s = (v ?? '').trim();
                     if (s.isEmpty) return 'Enter the channel URL';
                     final ok = Uri.tryParse(s)?.hasAbsolutePath ?? false;
-                    return ok ? null : 'Enter a valid URL';
+                    if (!ok) return 'Enter a valid URL';
+                    if (s.length > 255) return 'URL is too long';
+                    return null;
                   },
                 ),
                 const SizedBox(height: 16),
@@ -332,7 +426,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('Submit for approval'),
+                      : Text(_isEdit ? 'Save changes' : 'Submit for approval'),
                 ),
               ],
             ),

@@ -18,33 +18,57 @@ class PromotionsScreen extends ConsumerWidget {
     final requests = ref.watch(influencerRequestsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Incoming requests')),
-      body: requests.when(
-        loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(
-          message: 'Could not load requests.',
-          onRetry: () => ref.invalidate(influencerRequestsProvider),
-        ),
-        data: (list) {
-          if (list.isEmpty) {
-            return const EmptyView(
-              icon: Icons.inbox_outlined,
-              message: 'No promotion requests yet.',
-            );
-          }
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: () async =>
-                ref.invalidate(influencerRequestsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: 12),
-              itemBuilder: (_, i) => _RequestCard(request: list[i]),
+      backgroundColor: AppColors.neutral50,
+      body: Column(
+        children: [
+          const SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Requests',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AppColors.neutral900,
+                  ),
+                ),
+              ),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: requests.when(
+              loading: () => const LoadingView(),
+              error: (e, _) => ErrorView(
+                message: 'Could not load requests.',
+                onRetry: () => ref.invalidate(influencerRequestsProvider),
+              ),
+              data: (list) {
+                if (list.isEmpty) {
+                  return const EmptyView(
+                    icon: Icons.inbox_outlined,
+                    message: 'No promotion requests yet.',
+                  );
+                }
+                return RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async =>
+                      ref.invalidate(influencerRequestsProvider),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    itemCount: list.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _RequestCard(request: list[i]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

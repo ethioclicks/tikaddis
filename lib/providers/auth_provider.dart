@@ -13,6 +13,13 @@ class AuthState {
   final List<String> roles;
   final bool isLoading;
 
+  /// True once startup state (token + onboarding flag) has been restored
+  /// from storage. Until then the app shows the splash.
+  final bool initialized;
+
+  /// Whether the first-launch walkthrough has already been seen.
+  final bool seenOnboarding;
+
   const AuthState({
     this.token,
     this.pid,
@@ -21,6 +28,8 @@ class AuthState {
     this.email,
     this.roles = const [],
     this.isLoading = false,
+    this.initialized = false,
+    this.seenOnboarding = false,
   });
 
   bool get isLoggedIn => token != null;
@@ -38,6 +47,8 @@ class AuthState {
     String? email,
     List<String>? roles,
     bool? isLoading,
+    bool? initialized,
+    bool? seenOnboarding,
   }) {
     return AuthState(
       token: token ?? this.token,
@@ -47,6 +58,8 @@ class AuthState {
       email: email ?? this.email,
       roles: roles ?? this.roles,
       isLoading: isLoading ?? this.isLoading,
+      initialized: initialized ?? this.initialized,
+      seenOnboarding: seenOnboarding ?? this.seenOnboarding,
     );
   }
 }
@@ -77,11 +90,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static const _kEmail = 'email';
   static const _kRoles = 'roles';
 
+  static const _kOnboarding = 'hasSeenOnboarding';
+
   Future<void> _loadFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_kToken);
     final pid = prefs.getString(_kPid);
-    if (token != null && pid != null) {
+    final seenOnboarding = prefs.getBool(_kOnboarding) ?? false;
+
+    if (token != null && token.isNotEmpty && pid != null && pid.isNotEmpty) {
       state = AuthState(
         token: token,
         pid: pid,
@@ -89,8 +106,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
         lastName: prefs.getString(_kLast),
         email: prefs.getString(_kEmail),
         roles: prefs.getStringList(_kRoles) ?? const [],
+        initialized: true,
+        seenOnboarding: seenOnboarding,
       );
+    } else {
+      state = AuthState(initialized: true, seenOnboarding: seenOnboarding);
     }
+  }
+
+  /// Marks the first-launch walkthrough as completed.
+  Future<void> completeOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kOnboarding, true);
+    state = state.copyWith(seenOnboarding: true);
   }
 
   Future<void> _persist(AuthState s) async {
@@ -105,6 +133,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> login(String userName, String password) async {
     state = state.copyWith(isLoading: true);
+    final seen = state.seenOnboarding;
     try {
       final res = await _api.login(userName.trim(), password);
       final data = res.data as Map<String, dynamic>;
@@ -116,14 +145,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: data['email'] as String?,
         roles: (data['roles'] as List?)?.map((e) => e.toString()).toList() ??
             const [],
+        initialized: true,
+        seenOnboarding: seen,
       );
       await _persist(next);
       state = next;
     } on DioException catch (e) {
-      state = const AuthState();
+      state = AuthState(initialized: true, seenOnboarding: seen);
       throw AuthException(_loginErrorMessage(e));
     } catch (_) {
-      state = const AuthState();
+      state = AuthState(initialized: true, seenOnboarding: seen);
       throw AuthException('Something went wrong. Please try again.');
     }
   }
@@ -178,8 +209,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    state = const AuthState();
+    // Clear the session but keep the onboarding flag so the walkthrough
+    // does not reappear after logging out.
+    final seen = prefs.getBool(_kOnboarding) ?? state.seenOnboarding;
+    await prefs.remove(_kToken);
+    await prefs.remove(_kPid);
+    await prefs.remove(_kFirst);
+    await prefs.remove(_kLast);
+    await prefs.remove(_kEmail);
+    await prefs.remove(_kRoles);
+    state = AuthState(initialized: true, seenOnboarding: seen);
   }
 
   /// Step 1 of password reset: verify the phone exists and trigger an OTP

@@ -65,9 +65,9 @@ class DashboardScreen extends ConsumerWidget {
                       _ActionCard(
                         icon: Icons.storefront_rounded,
                         color: AppColors.primaryHover,
-                        title: 'Influencer area',
+                        title: 'Creator space',
                         subtitle: 'Manage channels and incoming requests',
-                        onTap: () => context.push('/influencer'),
+                        onTap: () => context.go('/browse'),
                       )
                     else
                       _ActionCard(

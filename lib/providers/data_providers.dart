@@ -84,6 +84,37 @@ final influencerRequestsProvider =
   return page.content;
 });
 
+// ---------------- Admin providers ----------------
+
+/// All users (admin).
+final adminUsersProvider =
+    FutureProvider.autoDispose<List<AdminUser>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.adminUserList();
+  final page = PageResult.fromJson<AdminUser>(res.data, AdminUser.fromJson);
+  return page.content;
+});
+
+/// Influencer accounts by approval status (admin). status: ALL/APPROVED/DISAPPROVED
+final adminAccountsProvider = FutureProvider.autoDispose
+    .family<List<InfluencerAccount>, String>((ref, approvalStatus) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.adminAccountsByStatus(approvalStatus);
+  final page = PageResult.fromJson<InfluencerAccount>(
+      res.data, InfluencerAccount.fromJson);
+  return page.content;
+});
+
+/// All promotion requests (admin), optional status filter.
+final adminPromotionsProvider = FutureProvider.autoDispose
+    .family<List<PromotionRequest>, String?>((ref, status) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.adminPromotionList(status: status);
+  final page =
+      PageResult.fromJson<PromotionRequest>(res.data, PromotionRequest.fromJson);
+  return page.content;
+});
+
 /// Business owner's own promotion requests, optionally filtered by status.
 final myPromotionsProvider = FutureProvider.autoDispose
     .family<List<PromotionRequest>, String?>((ref, status) async {
