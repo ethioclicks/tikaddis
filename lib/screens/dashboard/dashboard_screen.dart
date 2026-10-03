@@ -79,6 +79,7 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     const SizedBox(height: 24),
                     _RecentPromotions(async: myPromos),
+                    const SizedBox(height: 90), // clear floating nav
                   ],
                 ),
               ),

@@ -153,6 +153,20 @@ class EmptyView extends StatelessWidget {
   }
 }
 
+/// A clean, full-width 1px bottom border for app bars (no Divider indent
+/// artifacts).
+class AppBarBottomLine extends StatelessWidget implements PreferredSizeWidget {
+  const AppBarBottomLine({super.key});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(1);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(height: 1, color: AppColors.neutral200);
+  }
+}
+
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});
   final PromotionStatus? status;

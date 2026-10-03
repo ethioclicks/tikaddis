@@ -16,37 +16,56 @@ class BrowseScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        titleSpacing: 20,
-        title: const Text('Browse creators',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-      ),
-      body: accounts.when(
-        loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(
-          message: 'Could not load creators.',
-          onRetry: () => ref.invalidate(approvedAccountsProvider),
-        ),
-        data: (list) {
-          if (list.isEmpty) {
-            return const EmptyView(
-              icon: Icons.search_off,
-              message: 'No approved creators yet.\nCheck back soon.',
-            );
-          }
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: () async => ref.invalidate(approvedAccountsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: 12),
-              itemBuilder: (_, i) => _AccountCard(account: list[i]),
+      body: Column(
+        children: [
+          const SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Browse creators',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AppColors.neutral900,
+                  ),
+                ),
+              ),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: accounts.when(
+              loading: () => const LoadingView(),
+              error: (e, _) => ErrorView(
+                message: 'Could not load creators.',
+                onRetry: () => ref.invalidate(approvedAccountsProvider),
+              ),
+              data: (list) {
+                if (list.isEmpty) {
+                  return const EmptyView(
+                    icon: Icons.search_off,
+                    message: 'No approved creators yet.\nCheck back soon.',
+                  );
+                }
+                return RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async =>
+                      ref.invalidate(approvedAccountsProvider),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                    itemCount: list.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _AccountCard(account: list[i]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

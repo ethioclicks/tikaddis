@@ -24,14 +24,26 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        titleSpacing: 20,
-        title: const Text('My promotions',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-      ),
       body: Column(
         children: [
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'My promotions',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AppColors.neutral900,
+                  ),
+                ),
+              ),
+            ),
+          ),
           _FilterBar(
             selected: _filter,
             onSelected: (s) => setState(() => _filter = s),
@@ -62,7 +74,7 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
                   onRefresh: () async =>
                       ref.invalidate(myPromotionsProvider(_filter?.wire)),
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                     itemCount: list.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
@@ -84,41 +96,61 @@ class _FilterBar extends StatelessWidget {
   final PromotionStatus? selected;
   final ValueChanged<PromotionStatus?> onSelected;
 
-  // A sensible subset for business owners to filter by.
-  static const _options = <PromotionStatus?>[
-    null,
-    PromotionStatus.requested,
-    PromotionStatus.ownerApproved,
-    PromotionStatus.running,
-    PromotionStatus.fulfilled,
-    PromotionStatus.businessCanceled,
+  // A sensible subset for business owners to filter by, each with an icon.
+  static const _options = <(PromotionStatus?, IconData)>[
+    (null, Icons.apps_rounded),
+    (PromotionStatus.requested, Icons.schedule_rounded),
+    (PromotionStatus.ownerApproved, Icons.check_circle_outline),
+    (PromotionStatus.running, Icons.bolt_rounded),
+    (PromotionStatus.fulfilled, Icons.task_alt_rounded),
+    (PromotionStatus.businessCanceled, Icons.cancel_outlined),
   ];
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 52,
+      height: 60,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
         itemCount: _options.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (_, i) {
-          final opt = _options[i];
+          final (opt, icon) = _options[i];
           final isSel = opt == selected;
-          return ChoiceChip(
-            label: Text(opt?.label ?? 'All'),
-            selected: isSel,
-            onSelected: (_) => onSelected(opt),
-            showCheckmark: false,
-            selectedColor: AppColors.primary,
-            backgroundColor: AppColors.neutral100,
-            labelStyle: TextStyle(
-              color: isSel ? Colors.white : AppColors.neutral600,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+          return GestureDetector(
+            onTap: () => onSelected(opt),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSel ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSel ? AppColors.primary : AppColors.neutral200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: isSel ? Colors.white : AppColors.neutral500,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    opt?.label ?? 'All',
+                    style: TextStyle(
+                      color: isSel ? Colors.white : AppColors.neutral700,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            side: BorderSide.none,
           );
         },
       ),

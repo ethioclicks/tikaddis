@@ -18,29 +18,49 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        titleSpacing: 20,
-        title: const Text('Profile',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-        actions: [
-          IconButton(
-            tooltip: 'Log out',
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) context.go('/login');
-            },
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: AppColors.neutral900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Log out',
+                    icon: const Icon(Icons.logout,
+                        color: AppColors.neutral700),
+                    onPressed: () async {
+                      await ref.read(authProvider.notifier).logout();
+                      if (context.mounted) context.go('/login');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: profile.when(
+              loading: () => const LoadingView(),
+              error: (e, _) => ErrorView(
+                message: 'Could not load your profile.',
+                onRetry: () => ref.invalidate(profileProvider),
+              ),
+              data: (p) => _ProfileBody(profile: p, auth: auth),
+            ),
           ),
         ],
-      ),
-      body: profile.when(
-        loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(
-          message: 'Could not load your profile.',
-          onRetry: () => ref.invalidate(profileProvider),
-        ),
-        data: (p) => _ProfileBody(profile: p, auth: auth),
       ),
     );
   }
@@ -78,7 +98,7 @@ class _ProfileBody extends ConsumerWidget {
     final isLoading = ref.watch(authProvider).isLoading;
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
       children: [
         Center(
           child: Column(
