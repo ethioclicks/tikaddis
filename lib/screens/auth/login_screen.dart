@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/dots_loading.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,13 +27,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /// Normalise what the user typed into the stored form `0XXXXXXXXX`.
+  /// The field shows a "+251" prefix, so users may type the 9-digit national
+  /// number (932599064) or the 10-digit local form (0932599064); both must
+  /// resolve to the same account.
+  static String normalizePhone(String raw) {
+    var s = raw.trim().replaceAll(RegExp(r'[\s\-()]'), '');
+    if (s.startsWith('+251')) {
+      s = s.substring(4);
+    } else if (s.startsWith('251')) {
+      s = s.substring(3);
+    }
+    // National number without the leading 0 -> add it.
+    if (s.length == 9 && !s.startsWith('0')) s = '0$s';
+    return s;
+  }
+
   Future<void> _submit() async {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
 
     try {
       await ref.read(authProvider.notifier).login(
-            _phone.text,
+            normalizePhone(_phone.text),
             _password.text,
           );
       if (!mounted) return;
@@ -66,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Image.asset('assets/images/logo.png', height: 96),
                     const SizedBox(height: 28),
                     const Text(
-                      'Welcome back',
+                      'Welcome to Ethio Promo',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.neutral900,
@@ -92,12 +109,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Phone number',
-                        prefixIcon: Icon(Icons.phone_outlined),
+                        prefixText: '+251 ',
                       ),
                       validator: (v) {
-                        final s = (v ?? '').trim();
+                        final s = normalizePhone(v ?? '');
                         if (s.isEmpty) return 'Enter your phone number';
-                        if (s.length < 10) return 'Enter a valid phone number';
+                        // Accepts 9-digit national (adds 0) or 10-digit local.
+                        if (!RegExp(r'^0\d{9}$').hasMatch(s)) {
+                          return 'Enter a valid phone number';
+                        }
                         return null;
                       },
                     ),
@@ -109,7 +129,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(_obscure
                               ? Icons.visibility_outlined
@@ -136,15 +155,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ElevatedButton(
                       onPressed: isLoading ? null : _submit,
                       child: isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white),
-                              ),
-                            )
+                          ? const DotsLoading()
                           : const Text('Sign in'),
                     ),
                     const SizedBox(height: 20),

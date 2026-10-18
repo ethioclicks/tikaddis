@@ -1,4 +1,4 @@
-package com.ethioclicks.ethio_promo_mobile
+package com.ethioclicks.tikaddis
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -46,24 +46,6 @@ class Fmt {
     }
   }
 
-  /// Secondary color for a platform gradient header.
-  static Color platformColor2(AccountType? t) {
-    switch (t) {
-      case AccountType.telegram:
-        return const Color(0xFF1C7DB5);
-      case AccountType.youtube:
-        return const Color(0xFFCC0000);
-      case AccountType.tiktok:
-        return const Color(0xFF25F4EE);
-      case AccountType.facebook:
-        return const Color(0xFF0A5BC4);
-      case AccountType.instagram:
-        return const Color(0xFFF77737);
-      case null:
-        return AppColors.primaryHover;
-    }
-  }
-
   /// Brand icon per platform.
   static IconData platformIcon(AccountType? t) {
     switch (t) {

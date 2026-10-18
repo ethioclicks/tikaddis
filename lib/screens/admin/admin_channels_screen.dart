@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
 
 /// Admin: review influencer channels and approve/disapprove them.
 class AdminChannelsScreen extends ConsumerStatefulWidget {
@@ -202,10 +203,7 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
             const Center(
                 child: Padding(
               padding: EdgeInsets.all(4),
-              child: SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2.4)),
+              child: DotsLoading(color: AppColors.primary),
             ))
           else
             Row(

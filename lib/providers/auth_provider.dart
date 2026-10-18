@@ -131,6 +131,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.setStringList(_kRoles, s.roles);
   }
 
+  /// Reconcile the cached roles with the authoritative roles from the server
+  /// (e.g. GET /user). Keeps the UI in sync when the role changed server-side
+  /// since login (such as applying to become an influencer). No-op if equal.
+  Future<void> syncRoles(List<String> serverRoles) async {
+    if (!state.isLoggedIn) return;
+    final current = state.roles;
+    final same = current.length == serverRoles.length &&
+        current.toSet().containsAll(serverRoles);
+    if (same || serverRoles.isEmpty) return;
+    final next = state.copyWith(roles: serverRoles);
+    await _persist(next);
+    state = next;
+  }
+
   Future<void> login(String userName, String password) async {
     state = state.copyWith(isLoading: true);
     final seen = state.seenOnboarding;
@@ -290,7 +304,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       final res = await _api.becomeInfluencer(pid);
-      state = state.copyWith(isLoading: false);
+      // Reflect the new pending state locally so the UI stops offering "Apply
+      // now" and shows the pending state instead. Backend moved USER -> CANDIDATE.
+      final next = state.copyWith(isLoading: false, roles: const ['CANDIDATE']);
+      await _persist(next);
+      state = next;
       return res.data?.toString() ?? 'Request submitted.';
     } on DioException catch (e) {
       state = state.copyWith(isLoading: false);

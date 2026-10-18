@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:ethio_promo_mobile/main.dart';
+import 'package:tikaddis/main.dart';
 
 void main() {
   testWidgets('App boots, shows splash, then lands on the walkthrough',

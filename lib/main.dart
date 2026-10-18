@@ -15,7 +15,7 @@ class EthioPromoApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'EthioPromo',
+      title: 'Tikaddis',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       scrollBehavior: _AppScrollBehavior(),

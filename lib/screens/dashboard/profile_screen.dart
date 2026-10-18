@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
+import '../../widgets/hex_pattern.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -45,7 +47,15 @@ class ProfileScreen extends ConsumerWidget {
                 message: 'Could not load your profile.',
                 onRetry: () => ref.invalidate(profileProvider),
               ),
-              data: (p) => _ProfileBody(profile: p, auth: auth),
+              data: (p) {
+                // Reconcile cached roles with the server's truth so the UI
+                // reflects role changes made since login (e.g. applied to be
+                // an influencer). Deferred to avoid mutating state in build.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ref.read(authProvider.notifier).syncRoles(p.roles);
+                });
+                return _ProfileBody(profile: p, auth: auth);
+              },
             ),
           ),
         ],
@@ -250,14 +260,7 @@ class _BecomeInfluencerCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.08),
-            AppColors.accent.withValues(alpha: 0.10),
-          ],
-        ),
+        color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.neutral200),
       ),
@@ -289,15 +292,7 @@ class _BecomeInfluencerCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: (isCandidate || isLoading) ? null : onApply,
               child: isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
+                  ? const DotsLoading()
                   : Text(isCandidate ? 'Request pending' : 'Apply now'),
             ),
           ),
@@ -321,13 +316,8 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primaryHover, AppColors.primary],
-        ),
+        color: AppColors.primary,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -337,47 +327,56 @@ class _AccountCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.20),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
+      child: HexBackground(
+        borderRadius: BorderRadius.circular(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 132),
+          child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+          child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.20),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                _RoleChips(roles: roles),
-              ],
+                  const SizedBox(height: 6),
+                  _RoleChips(roles: roles),
+                ],
+              ),
             ),
+          ],
           ),
-        ],
+        ),
+        ),
       ),
     );
   }

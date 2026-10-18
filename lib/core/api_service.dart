@@ -103,6 +103,14 @@ class ApiService {
       _dio.get('/admin/user-list',
           queryParameters: {'keyword': keyword, 'page': page, 'size': size});
 
+  /// Users filtered by role, server-side paginated (GET /admin/user-list/{role}).
+  /// Requires the admin's pid header. Role is e.g. CANDIDATE, INFLUENCER, USER.
+  Future<Response> adminUsersByRole(String role, String adminPid,
+          {int page = 0, int size = 30}) =>
+      _dio.get('/admin/user-list/$role',
+          queryParameters: {'page': page, 'size': size},
+          options: Options(headers: {'pid': adminPid}));
+
   Future<Response> adminAccountsByStatus(String approvalStatus,
           {int page = 0, int size = 30}) =>
       _dio.get('/admin/account-list-by-approval-status',

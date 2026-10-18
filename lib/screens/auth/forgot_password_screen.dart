@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/dots_loading.dart';
 
 /// Two-step password reset matching the backend:
 ///   1. POST /public/phone-number-check  -> emails an OTP
@@ -264,14 +265,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 class _Spinner extends StatelessWidget {
   const _Spinner();
   @override
-  Widget build(BuildContext context) => const SizedBox(
-        height: 22,
-        width: 22,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.4,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        ),
-      );
+  Widget build(BuildContext context) => const DotsLoading();
 }
 
 class _Banner extends StatelessWidget {

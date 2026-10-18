@@ -19,14 +19,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   static const _slides = <_SlideData>[
     _SlideData(
-      icon: Icons.search_rounded,
+      icon: Icons.travel_explore_rounded,
+      badge: Icons.insights_rounded,
+      color: AppColors.primary,
       title: 'Find the right channel',
       body:
           'Browse creators on Telegram, YouTube, TikTok, Facebook and '
           'Instagram. See audience size, views per post and their price.',
     ),
     _SlideData(
-      icon: Icons.send_rounded,
+      icon: Icons.campaign_rounded,
+      badge: Icons.send_rounded,
+      color: AppColors.primaryLight,
       title: 'Send a promotion request',
       body:
           'Pick the dates, add your text and image, and send it straight to '
@@ -34,13 +38,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ),
     _SlideData(
       icon: Icons.storefront_rounded,
+      badge: Icons.sell_rounded,
+      color: AppColors.accent,
       title: 'List your account, set your price',
       body:
           'Add each channel you run, show your real view counts, and name a '
           'price for every slot.',
     ),
     _SlideData(
-      icon: Icons.verified_rounded,
+      icon: Icons.workspace_premium_rounded,
+      badge: Icons.check_rounded,
+      color: AppColors.accentHover,
       title: 'Approved, then it runs',
       body:
           'Every request is checked by an admin, then by the account owner. '
@@ -149,22 +157,7 @@ class _Slide extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary.withValues(alpha: 0.10),
-                  AppColors.accent.withValues(alpha: 0.12),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Icon(data.icon, size: 44, color: AppColors.accent),
-          ),
+          _SlideIcon(icon: data.icon, badge: data.badge, color: data.color),
           const SizedBox(height: 36),
           Text(
             data.title,
@@ -193,14 +186,87 @@ class _Slide extends StatelessWidget {
   }
 }
 
+/// Layered icon "scene": a soft circular wash, a tinted rounded tile with the
+/// main glyph, and a small accent badge overlapping the corner. Gives each
+/// slide depth and a distinct silhouette instead of a flat single glyph.
+class _SlideIcon extends StatelessWidget {
+  const _SlideIcon({
+    required this.icon,
+    required this.badge,
+    required this.color,
+  });
+
+  final IconData icon;
+  final IconData badge;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 148,
+      height: 148,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Soft circular backdrop.
+          Container(
+            width: 148,
+            height: 148,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+          ),
+          // Main tile.
+          Container(
+            width: 104,
+            height: 104,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Icon(icon, size: 52, color: color),
+          ),
+          // Accent badge, overlapping the top-right corner.
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.background, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(badge, size: 20, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SlideData {
   const _SlideData({
     required this.icon,
+    required this.badge,
+    required this.color,
     required this.title,
     required this.body,
   });
 
   final IconData icon;
+  final IconData badge;
+  final Color color;
   final String title;
   final String body;
 }

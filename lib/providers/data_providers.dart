@@ -86,11 +86,23 @@ final influencerRequestsProvider =
 
 // ---------------- Admin providers ----------------
 
-/// All users (admin).
+/// All users (admin), keyword search (default empty).
 final adminUsersProvider =
     FutureProvider.autoDispose<List<AdminUser>>((ref) async {
   final api = ref.read(apiServiceProvider);
   final res = await api.adminUserList();
+  final page = PageResult.fromJson<AdminUser>(res.data, AdminUser.fromJson);
+  return page.content;
+});
+
+/// Users filtered by role, server-side (admin). role: CANDIDATE/INFLUENCER/USER.
+/// Used by the Users screen tabs so large user bases stay paginated server-side.
+final adminUsersByRoleProvider = FutureProvider.autoDispose
+    .family<List<AdminUser>, String>((ref, role) async {
+  final api = ref.read(apiServiceProvider);
+  final pid = ref.read(authProvider).pid;
+  if (pid == null) return [];
+  final res = await api.adminUsersByRole(role, pid);
   final page = PageResult.fromJson<AdminUser>(res.data, AdminUser.fromJson);
   return page.content;
 });

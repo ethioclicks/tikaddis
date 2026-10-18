@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
 
 /// Admin: review all promotion requests and move them through the pipeline.
 class AdminPromotionsScreen extends ConsumerStatefulWidget {
@@ -186,11 +187,7 @@ class _AdminPromoCardState extends ConsumerState<_AdminPromoCard> {
               (canAdminApprove || canRun || canFulfill)) ...[
             const SizedBox(height: 14),
             if (_busy)
-              const Center(
-                  child: SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.4)))
+              const Center(child: DotsLoading(color: AppColors.primary))
             else if (canAdminApprove)
               Row(children: [
                 Expanded(

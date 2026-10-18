@@ -89,6 +89,7 @@ class UserProfile {
   final String? userName; // phone
   final String? email;
   final UserAddress? address;
+  final List<String> roles;
 
   UserProfile({
     this.userPublicId,
@@ -97,6 +98,7 @@ class UserProfile {
     this.userName,
     this.email,
     this.address,
+    this.roles = const [],
   });
 
   String get fullName =>
@@ -111,6 +113,8 @@ class UserProfile {
         address: j['address'] is Map<String, dynamic>
             ? UserAddress.fromJson(j['address'] as Map<String, dynamic>)
             : null,
+        roles: (j['roles'] as List?)?.map((e) => e.toString()).toList() ??
+            const [],
       );
 }
 

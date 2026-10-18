@@ -7,65 +7,156 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
 
-/// Admin: list users and approve/disapprove influencer candidates.
+/// Admin: users split into tabs so pending influencer requests are isolated
+/// and each list stays paginated server-side (scales to large user bases).
 class AdminUsersScreen extends ConsumerWidget {
   const AdminUsersScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final users = ref.watch(adminUsersProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.neutral50,
-      body: Column(
-        children: [
-          const SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Users',
-                    style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: AppColors.neutral900)),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: AppColors.neutral50,
+        body: Column(
+          children: [
+            const SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Users',
+                      style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: AppColors.neutral900)),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: users.when(
-              loading: () => const LoadingView(),
-              error: (e, _) => ErrorView(
-                message: 'Could not load users.',
-                onRetry: () => ref.invalidate(adminUsersProvider),
-              ),
-              data: (list) {
-                if (list.isEmpty) {
-                  return const EmptyView(
-                      icon: Icons.people_outline, message: 'No users found.');
-                }
-                return RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: () async => ref.invalidate(adminUsersProvider),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                    itemCount: list.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _UserCard(
-                      user: list[i],
-                      onChanged: () => ref.invalidate(adminUsersProvider),
-                    ),
+            const TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.neutral500,
+              indicatorColor: AppColors.primary,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle:
+                  TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+              tabs: [
+                Tab(text: 'Pending'),
+                Tab(text: 'Influencers'),
+                Tab(text: 'All'),
+              ],
+            ),
+            const Expanded(
+              child: TabBarView(
+                children: [
+                  // Pending influencer applications (role CANDIDATE).
+                  _RoleUserList(
+                    role: 'CANDIDATE',
+                    emptyMessage: 'No pending requests.',
                   ),
-                );
+                  // Approved influencers (role INFLUENCER).
+                  _RoleUserList(
+                    role: 'INFLUENCER',
+                    emptyMessage: 'No influencers yet.',
+                  ),
+                  // Everyone (keyword list).
+                  _AllUsersList(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A user list backed by the role-filtered admin endpoint.
+class _RoleUserList extends ConsumerWidget {
+  const _RoleUserList({required this.role, required this.emptyMessage});
+  final String role;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final users = ref.watch(adminUsersByRoleProvider(role));
+    return users.when(
+      loading: () => const LoadingView(),
+      error: (e, _) => ErrorView(
+        message: 'Could not load users.',
+        onRetry: () => ref.invalidate(adminUsersByRoleProvider(role)),
+      ),
+      data: (list) {
+        if (list.isEmpty) {
+          return EmptyView(
+              icon: Icons.people_outline, message: emptyMessage);
+        }
+        return RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async => ref.invalidate(adminUsersByRoleProvider(role)),
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+            itemCount: list.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (_, i) => _UserCard(
+              user: list[i],
+              // Refresh the role tab and the All tab after an approve/reject,
+              // since a change moves the user between lists.
+              onChanged: () {
+                ref.invalidate(adminUsersByRoleProvider(role));
+                ref.invalidate(adminUsersByRoleProvider('INFLUENCER'));
+                ref.invalidate(adminUsersProvider);
               },
             ),
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+/// The "All" tab backed by the keyword admin endpoint.
+class _AllUsersList extends ConsumerWidget {
+  const _AllUsersList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final users = ref.watch(adminUsersProvider);
+    return users.when(
+      loading: () => const LoadingView(),
+      error: (e, _) => ErrorView(
+        message: 'Could not load users.',
+        onRetry: () => ref.invalidate(adminUsersProvider),
       ),
+      data: (list) {
+        if (list.isEmpty) {
+          return const EmptyView(
+              icon: Icons.people_outline, message: 'No users found.');
+        }
+        return RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async => ref.invalidate(adminUsersProvider),
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+            itemCount: list.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (_, i) => _UserCard(
+              user: list[i],
+              onChanged: () {
+                ref.invalidate(adminUsersProvider);
+                ref.invalidate(adminUsersByRoleProvider('CANDIDATE'));
+                ref.invalidate(adminUsersByRoleProvider('INFLUENCER'));
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -158,11 +249,7 @@ class _UserCardState extends ConsumerState<_UserCard> {
           if (u.isCandidate) ...[
             const SizedBox(height: 14),
             if (_busy)
-              const Center(
-                  child: SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.4)))
+              const Center(child: DotsLoading(color: AppColors.primary))
             else
               Row(children: [
                 Expanded(

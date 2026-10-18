@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
 
 /// Business owner creates a promotion request against an influencer account.
 /// Backend: POST /user/promotion/secure/create-promotion-request-as-business-owner
@@ -238,15 +239,7 @@ class _CreatePromotionScreenState
                 ElevatedButton(
                   onPressed: _submitting ? null : _submit,
                   child: _submitting
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
+                      ? const DotsLoading()
                       : const Text('Send request'),
                 ),
               ],

@@ -49,16 +49,10 @@ class InfluencerDashboardScreen extends ConsumerWidget {
               ),
               data: (list) {
                 if (list.isEmpty) {
-                  return EmptyView(
+                  return const EmptyView(
                     icon: Icons.storefront_outlined,
                     message:
                         'No channels yet.\nTap the + to list your first one.',
-                    action: ElevatedButton.icon(
-                      onPressed: () =>
-                          context.push('/influencer/accounts/new'),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add a channel'),
-                    ),
                   );
                 }
                 return RefreshIndicator(

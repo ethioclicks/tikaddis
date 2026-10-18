@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/hex_pattern.dart';
 
 /// Platform-themed detail page for an influencer's own channel, with
 /// edit + delete management.
@@ -93,27 +94,30 @@ class _Detail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Fmt.platformColor(account.accountType);
-    final color2 = Fmt.platformColor2(account.accountType);
 
     return CustomScrollView(
       slivers: [
         // Platform-themed hero header.
         SliverToBoxAdapter(
           child: Container(
-            padding: EdgeInsets.fromLTRB(
-                16, MediaQuery.of(context).padding.top + 8, 16, 28),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [color, color2],
-              ),
+              color: color,
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(28),
                 bottomRight: Radius.circular(28),
               ),
             ),
-            child: Column(
+            child: HexBackground(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
+              ),
+              opacity: 0.1,
+              radius: 44,
+              child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                  16, MediaQuery.of(context).padding.top + 8, 16, 28),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -185,6 +189,8 @@ class _Detail extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _ApprovalPill(approved: account.approved),
               ],
+              ),
+              ),
             ),
           ),
         ),

@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
 
 /// Incoming promotion requests for the influencer's accounts, with
 /// approve/reject actions (account-owner stage of the pipeline).
@@ -224,11 +225,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(4),
-                  child: SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.4),
-                  ),
+                  child: DotsLoading(color: AppColors.primary),
                 ),
               )
             else

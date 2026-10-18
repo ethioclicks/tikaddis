@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/dots_loading.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -202,15 +203,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ElevatedButton(
                       onPressed: isLoading ? null : _submit,
                       child: isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white),
-                              ),
-                            )
+                          ? const DotsLoading()
                           : const Text('Create account'),
                     ),
                     const SizedBox(height: 16),

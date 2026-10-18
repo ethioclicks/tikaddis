@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/dots_loading.dart';
 
 /// Create a new influencer account.
 /// Backend: POST /influencer/create-influencer-account/{categoryId}
@@ -417,15 +418,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 ElevatedButton(
                   onPressed: _submitting ? null : _submit,
                   child: _submitting
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
+                      ? const DotsLoading()
                       : Text(_isEdit ? 'Save changes' : 'Submit for approval'),
                 ),
               ],

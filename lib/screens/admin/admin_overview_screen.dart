@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/hex_pattern.dart';
 
 /// Admin landing: at-a-glance counts of what needs attention + logout.
 class AdminOverviewScreen extends ConsumerWidget {
@@ -30,47 +31,53 @@ class AdminOverviewScreen extends ConsumerWidget {
           padding: EdgeInsets.zero,
           children: [
             Container(
-              padding: EdgeInsets.fromLTRB(
-                  20, MediaQuery.of(context).padding.top + 20, 20, 40),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primaryHover, AppColors.primary],
-                ),
+                color: AppColors.primary,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(28),
                   bottomRight: Radius.circular(28),
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Admin',
-                            style: TextStyle(
-                                color: Color(0xCCFFFFFF), fontSize: 14)),
-                        const SizedBox(height: 2),
-                        Text('Hi, $name',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.5)),
-                      ],
-                    ),
+              child: HexBackground(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
+                ),
+                opacity: 0.1,
+                radius: 44,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                      20, MediaQuery.of(context).padding.top + 20, 20, 40),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Admin',
+                                style: TextStyle(
+                                    color: Color(0xCCFFFFFF), fontSize: 14)),
+                            const SizedBox(height: 2),
+                            Text('Hi, $name',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.5)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Log out',
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        onPressed: () async {
+                          await ref.read(authProvider.notifier).logout();
+                          if (context.mounted) context.go('/login');
+                        },
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'Log out',
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    onPressed: () async {
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) context.go('/login');
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
             Transform.translate(

@@ -87,10 +87,7 @@ class _NavButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: selected ? 16 : 14),
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  colors: [AppColors.primaryHover, AppColors.primary])
-              : null,
+          color: selected ? AppColors.primary : null,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
