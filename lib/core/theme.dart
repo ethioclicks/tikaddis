@@ -7,15 +7,15 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Primary — the logo's blue.
-  static const Color primary = Color(0xFF0A6CF0);
-  static const Color primaryHover = Color(0xFF0A5AD0);
-  static const Color primaryLight = Color(0xFF2E90FF);
+  // Primary — the logo's blue (bright azure core #015DFD, highlight #02B5FD).
+  static const Color primary = Color(0xFF0E7BFD);
+  static const Color primaryHover = Color(0xFF015DFD);
+  static const Color primaryLight = Color(0xFF02B5FD);
 
-  // Secondary accent — the logo's orange.
-  static const Color accent = Color(0xFFFF7A00);
-  static const Color accentHover = Color(0xFFF26300);
-  static const Color accentLight = Color(0xFFFFB020);
+  // Secondary accent — the logo's amber→orange (gold #FDB802, deep #FC5B02).
+  static const Color accent = Color(0xFFFC8A02);
+  static const Color accentHover = Color(0xFFFC5B02);
+  static const Color accentLight = Color(0xFFFDB802);
 
   static const Color background = Color(0xFFFFFFFF);
   static const Color foreground = Color(0xFF0A0A0A);

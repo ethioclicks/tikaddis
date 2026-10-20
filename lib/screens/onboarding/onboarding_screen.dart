@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/hex_pattern.dart';
 
-/// First-launch walkthrough. Clean, static slides — no animation. Copy is
-/// written around what the app actually does.
+/// Two-slide walkthrough. Only the hero (top) swipes; the white sheet, dots
+/// and Skip / Next are fixed chrome — swiping or Next just changes the hero
+/// and the copy inside the sheet.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -14,63 +16,42 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  // Brand colours drive everything so onboarding follows the logo/theme.
+  static const Color _navy = AppColors.primaryHover; // deep logo blue panel
+  static const Color _brand = AppColors.primary; // controls/accents
+
   final _controller = PageController();
   int _page = 0;
 
   static const _slides = <_SlideData>[
     _SlideData(
-      icon: Icons.travel_explore_rounded,
-      badge: Icons.insights_rounded,
-      color: AppColors.primary,
-      title: 'Find the right channel',
+      hero: _Hero.logo,
+      title: 'Find the right creators',
       body:
-          'Browse creators on Telegram, YouTube, TikTok, Facebook and '
-          'Instagram. See audience size, views per post and their price.',
+          'Browse real channels with audience size, views and price — all in '
+          'one place, before you spend a birr.',
     ),
     _SlideData(
-      icon: Icons.campaign_rounded,
-      badge: Icons.send_rounded,
-      color: AppColors.primaryLight,
-      title: 'Send a promotion request',
+      hero: _Hero.rocket,
+      title: 'Request, approve, go live',
       body:
-          'Pick the dates, add your text and image, and send it straight to '
-          "the creator's account.",
-    ),
-    _SlideData(
-      icon: Icons.storefront_rounded,
-      badge: Icons.sell_rounded,
-      color: AppColors.accent,
-      title: 'List your account, set your price',
-      body:
-          'Add each channel you run, show your real view counts, and name a '
-          'price for every slot.',
-    ),
-    _SlideData(
-      icon: Icons.workspace_premium_rounded,
-      badge: Icons.check_rounded,
-      color: AppColors.accentHover,
-      title: 'Approved, then it runs',
-      body:
-          'Every request is checked by an admin, then by the account owner. '
-          'Once both say yes, it goes live and gets marked fulfilled.',
+          'Send a promotion in a tap. Once the creator and admin approve, it '
+          'runs and gets marked fulfilled.',
     ),
   ];
 
   bool get _isLast => _page == _slides.length - 1;
 
-  Future<void> _finish() async {
-    // Persist the flag; the router's redirect guard will move us off
-    // onboarding automatically once state updates.
-    await ref.read(authProvider.notifier).completeOnboarding();
-  }
+  Future<void> _finish() =>
+      ref.read(authProvider.notifier).completeOnboarding();
 
   void _next() {
     if (_isLast) {
       _finish();
     } else {
       _controller.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
       );
     }
   }
@@ -83,170 +64,135 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final slide = _slides[_page];
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8, top: 4),
-                child: TextButton(
-                  onPressed: _isLast ? null : _finish,
-                  child: Text(
-                    _isLast ? '' : 'Skip',
-                    style: const TextStyle(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: _slides.length,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemBuilder: (context, i) => _Slide(data: _slides[i]),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_slides.length, (i) {
-                final active = i == _page;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  height: 8,
-                  width: active ? 24 : 8,
-                  decoration: BoxDecoration(
-                    color: active ? AppColors.primary : AppColors.neutral200,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                );
-              }),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _next,
-                  child: Text(_isLast ? 'Create account' : 'Next'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Slide extends StatelessWidget {
-  const _Slide({required this.data});
-
-  final _SlideData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: _navy,
+      body: Column(
         children: [
-          _SlideIcon(icon: data.icon, badge: data.badge, color: data.color),
-          const SizedBox(height: 36),
-          Text(
-            data.title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.neutral900,
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-              height: 1.2,
+          // ── Top: ONLY the hero swipes ─────────────────────────────────
+          Expanded(
+            flex: 55,
+            child: Stack(
+              children: [
+                const Positioned.fill(
+                  child: HexPattern(
+                      color: Colors.white, opacity: 0.05, radius: 46),
+                ),
+                PageView.builder(
+                  controller: _controller,
+                  itemCount: _slides.length,
+                  onPageChanged: (i) => setState(() => _page = i),
+                  itemBuilder: (context, i) =>
+                      Center(child: _HeroVisual(hero: _slides[i].hero)),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            data.body,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.neutral500,
-              fontSize: 15,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-/// Layered icon "scene": a soft circular wash, a tinted rounded tile with the
-/// main glyph, and a small accent badge overlapping the corner. Gives each
-/// slide depth and a distinct silhouette instead of a flat single glyph.
-class _SlideIcon extends StatelessWidget {
-  const _SlideIcon({
-    required this.icon,
-    required this.badge,
-    required this.color,
-  });
-
-  final IconData icon;
-  final IconData badge;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 148,
-      height: 148,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Soft circular backdrop.
-          Container(
-            width: 148,
-            height: 148,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-          ),
-          // Main tile.
-          Container(
-            width: 104,
-            height: 104,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Icon(icon, size: 52, color: color),
-          ),
-          // Accent badge, overlapping the top-right corner.
-          Positioned(
-            top: 14,
-            right: 14,
+          // ── Bottom: FIXED white sheet (only the text changes) ─────────
+          Expanded(
+            flex: 45,
             child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.background, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(34),
+                  topRight: Radius.circular(34),
+                ),
               ),
-              child: Icon(badge, size: 20, color: Colors.white),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 40, 28, 20),
+                  child: Column(
+                    children: [
+                      // Copy changes with the page — no animation.
+                      Column(
+                        children: [
+                          Text(
+                            slide.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.neutral900,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            slide.body,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.neutral500,
+                              fontSize: 15,
+                              height: 1.55,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const Spacer(),
+
+                      // Fixed dots.
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(_slides.length, (i) {
+                          final active = i == _page;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 240),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            height: 9,
+                            width: active ? 26 : 9,
+                            decoration: BoxDecoration(
+                              color: active ? _brand : AppColors.neutral200,
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      const Spacer(),
+
+                      // Fixed Skip / Next.
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: _isLast ? null : _finish,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.neutral500,
+                            ),
+                            child: Text(_isLast ? '' : 'Skip'),
+                          ),
+                          TextButton(
+                            onPressed: _next,
+                            style:
+                                TextButton.styleFrom(foregroundColor: _brand),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _isLast ? 'Get started' : 'Next',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(Icons.arrow_forward_rounded,
+                                    size: 18),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -254,19 +200,39 @@ class _SlideIcon extends StatelessWidget {
     );
   }
 }
+
+enum _Hero { logo, rocket }
 
 class _SlideData {
   const _SlideData({
-    required this.icon,
-    required this.badge,
-    required this.color,
+    required this.hero,
     required this.title,
     required this.body,
   });
-
-  final IconData icon;
-  final IconData badge;
-  final Color color;
+  final _Hero hero;
   final String title;
   final String body;
+}
+
+class _HeroVisual extends StatelessWidget {
+  const _HeroVisual({required this.hero});
+  final _Hero hero;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 148,
+      height: 148,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: hero == _Hero.logo
+          ? Image.asset('assets/images/logo.png', height: 92)
+          : const Icon(Icons.rocket_launch_rounded,
+              color: Colors.white, size: 68),
+    );
+  }
 }
