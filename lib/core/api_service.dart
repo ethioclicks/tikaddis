@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8081'; // Android emulator → localhost
+  static const String baseUrl = 'https://tikaddis-app-w6zbh.ondigitalocean.app'; // hosted backend
   late final Dio _dio;
 
   ApiService() {
