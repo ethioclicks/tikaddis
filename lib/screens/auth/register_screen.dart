@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/dots_loading.dart';
+import 'auth_scaffold.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -37,6 +38,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
+  static String _normalizePhone(String raw) {
+    var s = raw.trim().replaceAll(RegExp(r'[\s\-()]'), '');
+    if (s.startsWith('+251')) {
+      s = s.substring(4);
+    } else if (s.startsWith('251')) {
+      s = s.substring(3);
+    }
+    if (s.length == 9 && !s.startsWith('0')) s = '0$s';
+    return s;
+  }
+
   Future<void> _submit() async {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
@@ -45,7 +57,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await ref.read(authProvider.notifier).register(
             firstName: _firstName.text,
             lastName: _lastName.text,
-            phone: _phone.text,
+            phone: _normalizePhone(_phone.text),
             password: _password.text,
             email: _email.text,
             city: _city.text,
@@ -69,168 +81,161 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authProvider).isLoading;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Create account')),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Join EthioPromo',
-                      style: TextStyle(
-                        color: AppColors.neutral900,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Create an account to request promotions or list your channels.',
-                      style: TextStyle(
-                        color: AppColors.neutral500,
-                        fontSize: 14.5,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    if (_error != null) _ErrorBanner(message: _error!),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Field(
-                            controller: _firstName,
-                            label: 'First name',
-                            icon: Icons.person_outline,
-                            validator: _nameValidator,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _Field(
-                            controller: _lastName,
-                            label: 'Last name',
-                            icon: Icons.person_outline,
-                            validator: _nameValidator,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _Field(
-                      controller: _phone,
-                      label: 'Phone number',
-                      icon: Icons.phone_outlined,
-                      keyboardType: TextInputType.phone,
-                      validator: (v) {
-                        final s = (v ?? '').trim();
-                        if (s.isEmpty) return 'Phone is required';
-                        if (s.length < 10) {
-                          return 'Phone must be at least 10 digits';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _Field(
-                      controller: _email,
-                      label: 'Email (optional)',
-                      icon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (v) {
-                        final s = (v ?? '').trim();
-                        if (s.isEmpty) return null; // optional
-                        final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                            .hasMatch(s);
-                        return ok ? null : 'Enter a valid email';
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Field(
-                            controller: _city,
-                            label: 'City',
-                            icon: Icons.location_city_outlined,
-                            validator: _requiredValidator('City is required'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _Field(
-                            controller: _street,
-                            label: 'Street',
-                            icon: Icons.signpost_outlined,
-                            validator:
-                                _requiredValidator('Street is required'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _Field(
-                      controller: _password,
-                      label: 'Password',
-                      icon: Icons.lock_outline,
-                      obscure: _obscure,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _submit(),
-                      suffix: IconButton(
-                        icon: Icon(_obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined),
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                      ),
-                      validator: (v) {
-                        final s = v ?? '';
-                        if (s.isEmpty) return 'Password is required';
-                        if (s.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: isLoading ? null : _submit,
-                      child: isLoading
-                          ? const DotsLoading()
-                          : const Text('Create account'),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Already have an account? ',
-                          style: TextStyle(color: AppColors.neutral500),
-                        ),
-                        GestureDetector(
-                          onTap: isLoading ? null : () => context.go('/login'),
-                          child: const Text(
-                            'Sign in',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+    return AuthScaffold(
+      title: 'Create your account',
+      subtitle: 'Join Tikaddis to request promotions or list your channels.',
+      onBack: () => context.go('/login'),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_error != null) ...[
+              AuthErrorBanner(message: _error!),
+              const SizedBox(height: 16),
+            ],
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: AuthField(
+                    controller: _firstName,
+                    label: 'First name',
+                    hint: 'First',
+                    icon: Icons.person_outline,
+                    textInputAction: TextInputAction.next,
+                    validator: _nameValidator,
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AuthField(
+                    controller: _lastName,
+                    label: 'Last name',
+                    hint: 'Last',
+                    icon: Icons.person_outline,
+                    textInputAction: TextInputAction.next,
+                    validator: _nameValidator,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AuthField(
+              controller: _phone,
+              label: 'Phone number',
+              hint: '9•• ••• •••',
+              prefixText: '+251 ',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              validator: (v) {
+                final s = _normalizePhone(v ?? '');
+                if (s.isEmpty) return 'Phone is required';
+                if (!RegExp(r'^0\d{9}$').hasMatch(s)) {
+                  return 'Enter a valid phone number';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            AuthField(
+              controller: _email,
+              label: 'Email (optional)',
+              hint: 'you@example.com',
+              icon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: (v) {
+                final s = (v ?? '').trim();
+                if (s.isEmpty) return null;
+                final ok =
+                    RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s);
+                return ok ? null : 'Enter a valid email';
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: AuthField(
+                    controller: _city,
+                    label: 'City',
+                    hint: 'Addis Ababa',
+                    icon: Icons.location_city_outlined,
+                    textInputAction: TextInputAction.next,
+                    validator: _requiredValidator('Required'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AuthField(
+                    controller: _street,
+                    label: 'Street',
+                    hint: 'Bole',
+                    icon: Icons.signpost_outlined,
+                    textInputAction: TextInputAction.next,
+                    validator: _requiredValidator('Required'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AuthField(
+              controller: _password,
+              label: 'Password',
+              hint: 'At least 6 characters',
+              icon: Icons.lock_outline,
+              obscure: _obscure,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              trailing: IconButton(
+                icon: Icon(
+                  _obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: AppColors.neutral500,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+              validator: (v) {
+                final s = v ?? '';
+                if (s.isEmpty) return 'Password is required';
+                if (s.length < 6) return 'At least 6 characters';
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 54,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : _submit,
+                child: isLoading
+                    ? const DotsLoading()
+                    : const Text('Create account'),
               ),
             ),
-          ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Already have an account? ',
+                    style: TextStyle(color: AppColors.neutral500)),
+                GestureDetector(
+                  onTap: isLoading ? null : () => context.go('/login'),
+                  child: const Text(
+                    'Sign in',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -245,79 +250,5 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   static FormFieldValidator<String> _requiredValidator(String message) {
     return (v) => (v ?? '').trim().isEmpty ? message : null;
-  }
-}
-
-class _Field extends StatelessWidget {
-  const _Field({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.validator,
-    this.keyboardType,
-    this.obscure = false,
-    this.suffix,
-    this.textInputAction = TextInputAction.next,
-    this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final FormFieldValidator<String>? validator;
-  final TextInputType? keyboardType;
-  final bool obscure;
-  final Widget? suffix;
-  final TextInputAction textInputAction;
-  final ValueChanged<String>? onSubmitted;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      keyboardType: keyboardType,
-      obscureText: obscure,
-      textInputAction: textInputAction,
-      onFieldSubmitted: onSubmitted,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        suffixIcon: suffix,
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFECACA)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFFB91C1C),
-                fontSize: 13.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
