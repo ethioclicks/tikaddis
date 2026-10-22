@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/dots_loading.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_toast.dart';
 import 'auth_scaffold.dart';
 
 /// Two-step password reset matching the backend:
@@ -30,8 +31,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   bool _obscure = true;
 
   _Step _step = _Step.phone;
-  String? _error;
-  String? _info;
 
   @override
   void dispose() {
@@ -53,10 +52,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _requestOtp() async {
-    setState(() {
-      _error = null;
-      _info = null;
-    });
     if (!_phoneFormKey.currentState!.validate()) return;
 
     try {
@@ -64,21 +59,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           .read(authProvider.notifier)
           .requestPasswordResetOtp(_normalizePhone(_phone.text));
       if (!mounted) return;
-      setState(() {
-        _step = _Step.reset;
-        _info = 'We sent a code to the email on your account.';
-      });
+      setState(() => _step = _Step.reset);
+      AppToast.info(context, 'We sent a code to the email on your account.');
     } on AuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
+      AppToast.error(context, e.message);
     }
   }
 
   Future<void> _resetPassword() async {
-    setState(() {
-      _error = null;
-      _info = null;
-    });
     if (!_resetFormKey.currentState!.validate()) return;
 
     try {
@@ -88,16 +77,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             newPassword: _newPassword.text,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset. Please sign in.'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+      AppToast.success(context, 'Password reset. Please sign in.');
       context.go('/login');
     } on AuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
+      AppToast.error(context, e.message);
     }
   }
 
@@ -116,11 +100,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         if (isPhone) {
           context.go('/login');
         } else {
-          setState(() {
-            _step = _Step.phone;
-            _error = null;
-            _info = null;
-          });
+          setState(() => _step = _Step.phone);
         }
       },
       child: isPhone ? _buildPhoneStep(isLoading) : _buildResetStep(isLoading),
@@ -133,10 +113,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_error != null) ...[
-            AuthErrorBanner(message: _error!),
-            const SizedBox(height: 16),
-          ],
           AuthField(
             controller: _phone,
             label: 'Phone number',
@@ -156,14 +132,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
           ),
           const SizedBox(height: 22),
-          SizedBox(
-            height: 54,
-            child: ElevatedButton(
-              onPressed: isLoading ? null : _requestOtp,
-              child: isLoading
-                  ? const DotsLoading()
-                  : const Text('Send reset code'),
-            ),
+          PrimaryButton(
+            label: 'Send reset code',
+            loading: isLoading,
+            onPressed: _requestOtp,
           ),
           const SizedBox(height: 10),
           TextButton(
@@ -181,14 +153,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_error != null) ...[
-            AuthErrorBanner(message: _error!),
-            const SizedBox(height: 16),
-          ],
-          if (_info != null) ...[
-            _InfoBanner(message: _info!),
-            const SizedBox(height: 16),
-          ],
           AuthField(
             controller: _otp,
             label: 'Reset code',
@@ -226,24 +190,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
           ),
           const SizedBox(height: 22),
-          SizedBox(
-            height: 54,
-            child: ElevatedButton(
-              onPressed: isLoading ? null : _resetPassword,
-              child: isLoading
-                  ? const DotsLoading()
-                  : const Text('Reset password'),
-            ),
+          PrimaryButton(
+            label: 'Reset password',
+            loading: isLoading,
+            onPressed: _resetPassword,
           ),
           const SizedBox(height: 10),
           TextButton(
             onPressed: isLoading
                 ? null
-                : () => setState(() {
-                      _step = _Step.phone;
-                      _error = null;
-                      _info = null;
-                    }),
+                : () => setState(() => _step = _Step.phone),
             child: const Text('Use a different phone number'),
           ),
         ],
@@ -252,31 +208,4 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 }
 
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner({required this.message});
-  final String message;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, color: Color(0xFF1D4ED8), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 13.5),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

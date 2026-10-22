@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/dots_loading.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_toast.dart';
 import 'auth_scaffold.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -24,7 +25,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _street = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
-  String? _error;
 
   @override
   void dispose() {
@@ -50,7 +50,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
 
     try {
@@ -64,16 +63,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             street: _street.text,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created. Please sign in.'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+      AppToast.success(context, 'Account created. Please sign in.');
       context.go('/login');
     } on AuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
+      AppToast.error(context, e.message);
     }
   }
 
@@ -90,10 +84,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_error != null) ...[
-              AuthErrorBanner(message: _error!),
-              const SizedBox(height: 16),
-            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -208,14 +198,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               },
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : _submit,
-                child: isLoading
-                    ? const DotsLoading()
-                    : const Text('Create account'),
-              ),
+            PrimaryButton(
+              label: 'Create account',
+              loading: isLoading,
+              onPressed: _submit,
             ),
             const SizedBox(height: 18),
             Row(

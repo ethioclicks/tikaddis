@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/dots_loading.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_toast.dart';
 import 'auth_scaffold.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phone = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
-  String? _error;
 
   @override
   void dispose() {
@@ -41,7 +41,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
 
     try {
@@ -54,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context.go(isAdmin ? '/admin' : '/dashboard');
     } on AuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
+      AppToast.error(context, e.message);
     }
   }
 
@@ -70,10 +69,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_error != null) ...[
-              AuthErrorBanner(message: _error!),
-              const SizedBox(height: 16),
-            ],
             AuthField(
               controller: _phone,
               label: 'Phone number',
@@ -122,14 +117,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : _submit,
-                child: isLoading
-                    ? const DotsLoading()
-                    : const Text('Sign in'),
-              ),
+            PrimaryButton(
+              label: 'Sign in',
+              loading: isLoading,
+              onPressed: _submit,
             ),
             const SizedBox(height: 20),
             Row(

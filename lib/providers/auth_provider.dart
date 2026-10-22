@@ -334,11 +334,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   String _loginErrorMessage(DioException e) {
-    final code = e.response?.statusCode;
-    if (code == 401 || code == 403) {
-      return 'Phone number or password is not correct.';
+    // Connection problems get the network message; everything else on the
+    // login call is treated as bad credentials with a clean, friendly line.
+    // (The backend returns its own raw "Generic exception..." string with a
+    // non-401 code, so we never surface that directly.)
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.connectionError) {
+      return 'Can\'t reach the server. Check your connection and try again.';
     }
-    return _genericNetworkMessage(e);
+    return 'Phone number or password is not correct.';
   }
 
   String _genericNetworkMessage(DioException e) {
