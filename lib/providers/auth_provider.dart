@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_service.dart';
+import '../core/session_token.dart';
 
 /// Immutable auth state mirroring the backend TokenPayLoad.
 class AuthState {
@@ -19,6 +20,7 @@ class AuthState {
 
   /// Whether the first-launch walkthrough has already been seen.
   final bool seenOnboarding;
+  final bool sessionExpired;
 
   const AuthState({
     this.token,
@@ -30,6 +32,7 @@ class AuthState {
     this.isLoading = false,
     this.initialized = false,
     this.seenOnboarding = false,
+    this.sessionExpired = false,
   });
 
   bool get isLoggedIn => token != null;
@@ -60,6 +63,7 @@ class AuthState {
       isLoading: isLoading ?? this.isLoading,
       initialized: initialized ?? this.initialized,
       seenOnboarding: seenOnboarding ?? this.seenOnboarding,
+      sessionExpired: sessionExpired,
     );
   }
 }
@@ -97,6 +101,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = prefs.getString(_kToken);
     final pid = prefs.getString(_kPid);
     final seenOnboarding = prefs.getBool(_kOnboarding) ?? false;
+
+    if (token != null && isSessionTokenExpired(token)) {
+      await logout(sessionExpired: true);
+      return;
+    }
 
     if (token != null && token.isNotEmpty && pid != null && pid.isNotEmpty) {
       state = AuthState(
@@ -137,7 +146,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> syncRoles(List<String> serverRoles) async {
     if (!state.isLoggedIn) return;
     final current = state.roles;
-    final same = current.length == serverRoles.length &&
+    final same =
+        current.length == serverRoles.length &&
         current.toSet().containsAll(serverRoles);
     if (same || serverRoles.isEmpty) return;
     final next = state.copyWith(roles: serverRoles);
@@ -157,7 +167,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         firstName: data['firstName'] as String?,
         lastName: data['lastName'] as String?,
         email: data['email'] as String?,
-        roles: (data['roles'] as List?)?.map((e) => e.toString()).toList() ??
+        roles:
+            (data['roles'] as List?)?.map((e) => e.toString()).toList() ??
             const [],
         initialized: true,
         seenOnboarding: seen,
@@ -193,10 +204,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'userName': phone.trim(),
         'userPassword': password,
         if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
-        'address': {
-          'city': city.trim(),
-          'street': street.trim(),
-        },
+        'address': {'city': city.trim(), 'street': street.trim()},
       });
       state = state.copyWith(isLoading: false);
     } on DioException catch (e) {
@@ -221,7 +229,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> logout() async {
+  Future<void> logout({bool sessionExpired = false}) async {
     final prefs = await SharedPreferences.getInstance();
     // Clear the session but keep the onboarding flag so the walkthrough
     // does not reappear after logging out.
@@ -232,7 +240,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove(_kLast);
     await prefs.remove(_kEmail);
     await prefs.remove(_kRoles);
-    state = AuthState(initialized: true, seenOnboarding: seen);
+    state = AuthState(
+      initialized: true,
+      seenOnboarding: seen,
+      sessionExpired: sessionExpired,
+    );
   }
 
   /// Step 1 of password reset: verify the phone exists and trigger an OTP
@@ -253,7 +265,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       if (code == 429) {
         throw AuthException(
-            'Too many requests. Please wait a bit and try again.');
+          'Too many requests. Please wait a bit and try again.',
+        );
       }
       throw AuthException(_resetErrorMessage(e));
     } catch (_) {
@@ -360,6 +373,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final apiServiceProvider = Provider((ref) => ApiService());
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
-    (ref) => AuthNotifier(ref.read(apiServiceProvider)));
+final Provider<ApiService> apiServiceProvider = Provider<ApiService>(
+  (ref) => ApiService(
+    onSessionExpired: () =>
+        ref.read(authProvider.notifier).logout(sessionExpired: true),
+  ),
+);
+final StateNotifierProvider<AuthNotifier, AuthState> authProvider =
+    StateNotifierProvider<AuthNotifier, AuthState>(
+      (ref) => AuthNotifier(ref.read(apiServiceProvider)),
+    );

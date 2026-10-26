@@ -9,6 +9,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/dots_loading.dart';
 import '../../widgets/hex_pattern.dart';
+import '../../widgets/app_toast.dart';
+import '../../widgets/delete_account_dialog.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -16,7 +18,6 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
-    final auth = ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
@@ -46,6 +47,10 @@ class ProfileScreen extends ConsumerWidget {
               error: (e, _) => ErrorView(
                 message: 'Could not load your profile.',
                 onRetry: () => ref.invalidate(profileProvider),
+                action: TextButton(
+                  onPressed: () => ref.read(authProvider.notifier).logout(),
+                  child: const Text('Sign in again'),
+                ),
               ),
               data: (p) {
                 // Reconcile cached roles with the server's truth so the UI
@@ -54,7 +59,7 @@ class ProfileScreen extends ConsumerWidget {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   ref.read(authProvider.notifier).syncRoles(p.roles);
                 });
-                return _ProfileBody(profile: p, auth: auth);
+                return _ProfileBody(profile: p);
               },
             ),
           ),
@@ -65,11 +70,24 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class _ProfileBody extends ConsumerWidget {
-  const _ProfileBody({required this.profile, required this.auth});
+  const _ProfileBody({required this.profile});
   final UserProfile profile;
-  final AuthState auth;
 
-  bool get _isCandidate => auth.roles.contains('CANDIDATE');
+  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
+    final api = ref.read(apiServiceProvider);
+    final deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => DeleteAccountDialog(
+        onDelete: (password) async {
+          await api.deleteOwnAccount(password);
+        },
+      ),
+    );
+    if (deleted == true && context.mounted) {
+      await ref.read(authProvider.notifier).logout();
+    }
+  }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showModalBottomSheet<bool>(
@@ -88,25 +106,24 @@ class _ProfileBody extends ConsumerWidget {
     try {
       final msg = await ref.read(authProvider.notifier).becomeInfluencer();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: AppColors.primary),
-      );
+      AppToast.success(context, msg);
     } on AuthException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: const Color(0xFFB91C1C),
-        ),
-      );
+      AppToast.error(context, e.message);
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final name = profile.fullName.isNotEmpty ? profile.fullName : 'Your account';
+    final name = profile.fullName.isNotEmpty
+        ? profile.fullName
+        : 'Your account';
     final initials = _initials(profile);
-    final isLoading = ref.watch(authProvider).isLoading;
+    // Watch auth LIVE so applying to be an influencer updates this screen
+    // immediately (roles change -> rebuild), no app restart needed.
+    final auth = ref.watch(authProvider);
+    final isLoading = auth.isLoading;
+    final isCandidate = auth.roles.contains('CANDIDATE');
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
@@ -118,7 +135,7 @@ class _ProfileBody extends ConsumerWidget {
         // Become influencer CTA (hidden for existing influencers).
         if (!auth.isInfluencer) ...[
           _BecomeInfluencerCard(
-            isCandidate: _isCandidate,
+            isCandidate: isCandidate,
             isLoading: isLoading,
             onApply: () => _becomeInfluencer(context, ref),
           ),
@@ -179,6 +196,13 @@ class _ProfileBody extends ConsumerWidget {
               title: 'Log out',
               danger: true,
               onTap: () => _confirmLogout(context, ref),
+            ),
+            _ActionRow(
+              icon: Icons.person_remove_outlined,
+              title: 'Delete account',
+              subtitle: 'Deactivate your account and hide your channels',
+              danger: true,
+              onTap: () => _deleteAccount(context, ref),
               last: true,
             ),
           ],
@@ -223,22 +247,23 @@ class _RoleChips extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: shown
-          .map((r) => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(999),
+          .map(
+            (r) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _label(r),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                child: Text(
-                  _label(r),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ))
+              ),
+            ),
+          )
           .toList(),
     );
   }
@@ -332,50 +357,50 @@ class _AccountCard extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 132),
           child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-          child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.20),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.20),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initials,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  _RoleChips(roles: roles),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _RoleChips(roles: roles),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
           ),
-        ),
         ),
       ),
     );
@@ -437,9 +462,7 @@ class _InfoRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: last
             ? null
-            : const Border(
-                bottom: BorderSide(color: AppColors.neutral200),
-              ),
+            : const Border(bottom: BorderSide(color: AppColors.neutral200)),
       ),
       child: Row(
         children: [
@@ -503,9 +526,7 @@ class _ActionRow extends StatelessWidget {
           decoration: BoxDecoration(
             border: last
                 ? null
-                : const Border(
-                    bottom: BorderSide(color: AppColors.neutral200),
-                  ),
+                : const Border(bottom: BorderSide(color: AppColors.neutral200)),
           ),
           child: Row(
             children: [
@@ -582,8 +603,11 @@ class _LogoutSheet extends StatelessWidget {
                   color: Color(0xFFFEF2F2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.logout,
-                    color: Color(0xFFDC2626), size: 28),
+                child: const Icon(
+                  Icons.logout,
+                  color: Color(0xFFDC2626),
+                  size: 28,
+                ),
               ),
               const SizedBox(height: 16),
               const Text(

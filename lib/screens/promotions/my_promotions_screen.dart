@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
 
+/// Business owner's promotions — editorial: bold headline, search, filter
+/// tabs, and image-forward request cards.
 class MyPromotionsScreen extends ConsumerStatefulWidget {
   const MyPromotionsScreen({super.key});
 
@@ -17,160 +19,210 @@ class MyPromotionsScreen extends ConsumerStatefulWidget {
 
 class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
   PromotionStatus? _filter; // null = All
+  String _query = '';
+
+  static const _tabs = <(PromotionStatus?, String)>[
+    (null, 'All'),
+    (PromotionStatus.requested, 'Pending'),
+    (PromotionStatus.running, 'Running'),
+    (PromotionStatus.fulfilled, 'Done'),
+    (PromotionStatus.businessCanceled, 'Canceled'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final promotions = ref.watch(myPromotionsProvider(_filter?.wire));
+    // Fetch unfiltered and filter client-side (works with demo data too).
+    final promotions = ref.watch(myPromotionsProvider(null));
 
     return Scaffold(
-      backgroundColor: AppColors.neutral50,
+      backgroundColor: Colors.white,
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () async =>
-            ref.invalidate(myPromotionsProvider(_filter?.wire)),
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
+        onRefresh: () async => ref.invalidate(myPromotionsProvider(null)),
+        child: promotions.when(
+          loading: () => const LoadingView(),
+          error: (e, _) => ErrorView(
+            message: 'Could not load your promotions.',
+            onRetry: () => ref.invalidate(myPromotionsProvider(null)),
           ),
-          slivers: [
-            const CollapsingTitleBar(title: 'My promotions'),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _FilterHeaderDelegate(
-                child: _FilterBar(
+          data: (all) {
+            final q = _query.trim().toLowerCase();
+            final rows = all.where((r) {
+              final matchesStatus =
+                  _filter == null || r.status == _filter;
+              final title =
+                  (r.influencerAccount?.title ?? '').toLowerCase();
+              final text = (r.promotionText ?? '').toLowerCase();
+              final matchesQuery =
+                  q.isEmpty || title.contains(q) || text.contains(q);
+              return matchesStatus && matchesQuery;
+            }).toList();
+
+            final activeCount = all
+                .where((r) =>
+                    r.status == PromotionStatus.running ||
+                    r.status == PromotionStatus.adminApproved ||
+                    r.status == PromotionStatus.ownerApproved)
+                .length;
+
+            return ListView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'My promotions',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.7,
+                            color: AppColors.neutral900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${all.length} total  ·  $activeCount active',
+                          style: const TextStyle(
+                            color: AppColors.neutral500,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        _SearchBar(
+                          onChanged: (v) => setState(() => _query = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _Tabs(
+                  tabs: _tabs,
                   selected: _filter,
                   onSelected: (s) => setState(() => _filter = s),
                 ),
-              ),
-            ),
-            promotions.when(
-              loading: () => const SliverFillRemaining(
-                hasScrollBody: false,
-                child: LoadingView(),
-              ),
-              error: (e, _) => SliverFillRemaining(
-                hasScrollBody: false,
-                child: ErrorView(
-                  message: 'Could not load your promotions.',
-                  onRetry: () =>
-                      ref.invalidate(myPromotionsProvider(_filter?.wire)),
-                ),
-              ),
-              data: (list) {
-                if (list.isEmpty) {
-                  return SliverFillRemaining(
-                    hasScrollBody: false,
+                const SizedBox(height: 20),
+                if (rows.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 48),
                     child: EmptyView(
                       icon: Icons.campaign_outlined,
-                      message:
-                          'No promotion requests yet.\nBrowse creators to send one.',
-                      action: ElevatedButton.icon(
-                        onPressed: () => context.go('/browse'),
-                        icon: const Icon(Icons.search, size: 18),
-                        label: const Text('Browse creators'),
-                      ),
+                      message: _query.isEmpty && _filter == null
+                          ? 'No promotion requests yet.\nBrowse creators to send one.'
+                          : 'No promotions match this filter.',
+                      action: _query.isEmpty && _filter == null
+                          ? ElevatedButton.icon(
+                              onPressed: () => context.go('/browse'),
+                              icon: const Icon(Icons.search, size: 18),
+                              label: const Text('Browse creators'),
+                            )
+                          : null,
                     ),
-                  );
-                }
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                  sliver: SliverList.separated(
-                    itemCount: list.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _PromotionCard(request: list[i]),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        for (final r in rows) ...[
+                          _PromotionCard(request: r),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
                   ),
-                );
-              },
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-/// Keeps the filter chips pinned below the collapsing title while scrolling.
-class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _FilterHeaderDelegate({required this.child});
-  final Widget child;
-
-  static const double _height = 60;
+// ── Search ────────────────────────────────────────────────────────────────
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.onChanged});
+  final ValueChanged<String> onChanged;
 
   @override
-  double get minExtent => _height;
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(color: AppColors.neutral50, child: child);
+  Widget build(BuildContext context) {
+    return TextField(
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      style: const TextStyle(fontSize: 15, color: AppColors.neutral900),
+      decoration: InputDecoration(
+        hintText: 'Search promotions',
+        hintStyle: const TextStyle(color: AppColors.neutral500, fontSize: 14.5),
+        prefixIcon: const Icon(Icons.search_rounded,
+            color: AppColors.neutral500, size: 21),
+        filled: true,
+        fillColor: AppColors.neutral50,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.neutral200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRebuild(covariant _FilterHeaderDelegate oldDelegate) =>
-      oldDelegate.child != child;
 }
 
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.selected, required this.onSelected});
+// ── Tabs ────────────────────────────────────────────────────────────────
+class _Tabs extends StatelessWidget {
+  const _Tabs({
+    required this.tabs,
+    required this.selected,
+    required this.onSelected,
+  });
+  final List<(PromotionStatus?, String)> tabs;
   final PromotionStatus? selected;
   final ValueChanged<PromotionStatus?> onSelected;
-
-  // A sensible subset for business owners to filter by, each with an icon.
-  static const _options = <(PromotionStatus?, IconData)>[
-    (null, Icons.apps_rounded),
-    (PromotionStatus.requested, Icons.schedule_rounded),
-    (PromotionStatus.ownerApproved, Icons.check_circle_outline),
-    (PromotionStatus.running, Icons.bolt_rounded),
-    (PromotionStatus.fulfilled, Icons.task_alt_rounded),
-    (PromotionStatus.businessCanceled, Icons.cancel_outlined),
-  ];
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 60,
+      height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-        itemCount: _options.length,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: tabs.length,
         separatorBuilder: (context, index) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final (opt, icon) = _options[i];
-          final isSel = opt == selected;
+        itemBuilder: (context, i) {
+          final (status, label) = tabs[i];
+          final active = status == selected;
           return GestureDetector(
-            onTap: () => onSelected(opt),
+            onTap: () => onSelected(status),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSel ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                color: active ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: isSel ? AppColors.primary : AppColors.neutral200,
+                  color: active ? AppColors.primary : AppColors.neutral200,
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 17,
-                    color: isSel ? Colors.white : AppColors.neutral500,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    opt?.label ?? 'All',
-                    style: TextStyle(
-                      color: isSel ? Colors.white : AppColors.neutral700,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                ],
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: active ? Colors.white : AppColors.neutral600,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           );
@@ -180,6 +232,7 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
+// ── Promotion card ──────────────────────────────────────────────────────
 class _PromotionCard extends StatelessWidget {
   const _PromotionCard({required this.request});
   final PromotionRequest request;
@@ -187,38 +240,99 @@ class _PromotionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final account = request.influencerAccount;
+    final hasImage = (account?.imageURL ?? '').isNotEmpty;
+    final pColor = Fmt.platformColor(account?.accountType);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.neutral200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Fmt.platformIcon(account?.accountType),
-                  size: 18, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  account?.title ?? 'Creator',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.neutral900,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+              // Creator avatar.
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: pColor.withValues(alpha: 0.10),
+                      image: hasImage
+                          ? DecorationImage(
+                              image: NetworkImage(account!.imageURL!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: hasImage
+                        ? null
+                        : Icon(Fmt.platformIcon(account?.accountType),
+                            color: pColor, size: 20),
                   ),
+                  Positioned(
+                    right: -1,
+                    bottom: -1,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: pColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Icon(Fmt.platformIcon(account?.accountType),
+                          color: Colors.white, size: 9),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account?.title ?? 'Creator',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.neutral900,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      account?.accountType?.label ?? '',
+                      style: const TextStyle(
+                        color: AppColors.neutral500,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               StatusBadge(status: request.status),
             ],
           ),
           if ((request.promotionText ?? '').isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               request.promotionText!,
               maxLines: 2,
@@ -230,27 +344,40 @@ class _PromotionCard extends StatelessWidget {
               ),
             ),
           ],
-          if (request.dateList.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.event_outlined,
-                    size: 15, color: AppColors.neutral500),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    request.dateList.map(Fmt.date).join(', '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.neutral500,
-                      fontSize: 12.5,
-                    ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.neutral100),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.event_rounded,
+                  size: 15, color: AppColors.neutral500),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  request.dateList.isNotEmpty
+                      ? request.dateList.map(Fmt.date).join(', ')
+                      : 'No dates set',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.neutral600,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+              if (account?.lowestCost != null)
+                Text(
+                  Fmt.birr(account!.lowestCost!),
+                  style: const TextStyle(
+                    color: AppColors.neutral900,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+            ],
+          ),
           if ((request.feedback ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(

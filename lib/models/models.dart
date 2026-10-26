@@ -2,13 +2,14 @@
 // Field names match the Java JSON exactly so Dio responses parse directly.
 
 /// Account platform type — mirrors backend AccountTypeEnum.
-/// (No list endpoint on the server; the enum is fixed.)
-enum AccountType {
-  telegram('TELEGRAM', 'Telegram'),
-  youtube('YOUTUBE', 'YouTube'),
-  tiktok('TIKTOK', 'TikTok'),
-  facebook('FACEBOOK', 'Facebook'),
-  instagram('INSTAGRAM', 'Instagram');
+/// Built-in platforms retain their wire codes; admins can add more platforms.
+class AccountType {
+  static const telegram = AccountType('TELEGRAM', 'Telegram');
+  static const youtube = AccountType('YOUTUBE', 'YouTube');
+  static const tiktok = AccountType('TIKTOK', 'TikTok');
+  static const facebook = AccountType('FACEBOOK', 'Facebook');
+  static const instagram = AccountType('INSTAGRAM', 'Instagram');
+  static const values = [telegram, youtube, tiktok, facebook, instagram];
 
   const AccountType(this.wire, this.label);
   final String wire; // exact enum name sent/received
@@ -19,8 +20,17 @@ enum AccountType {
     for (final t in AccountType.values) {
       if (t.wire == v) return t;
     }
-    return null;
+    return AccountType(v, v.replaceAll('_', ' '));
   }
+
+  factory AccountType.fromJson(Map<String, dynamic> j) =>
+      AccountType(j['code'] as String, j['name'] as String);
+
+  @override
+  bool operator ==(Object other) => other is AccountType && other.wire == wire;
+
+  @override
+  int get hashCode => wire.hashCode;
 }
 
 /// Mirrors backend PriceTypeEnum.
@@ -72,10 +82,8 @@ class UserAddress {
 
   UserAddress({this.street, this.city});
 
-  factory UserAddress.fromJson(Map<String, dynamic> j) => UserAddress(
-        street: j['street'] as String?,
-        city: j['city'] as String?,
-      );
+  factory UserAddress.fromJson(Map<String, dynamic> j) =>
+      UserAddress(street: j['street'] as String?, city: j['city'] as String?);
 
   String get display =>
       [street, city].where((e) => (e ?? '').isNotEmpty).join(', ');
@@ -105,17 +113,16 @@ class UserProfile {
       [firstName, lastName].where((e) => (e ?? '').isNotEmpty).join(' ').trim();
 
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
-        userPublicId: j['userPublicId'] as String?,
-        firstName: j['firstName'] as String?,
-        lastName: j['lastName'] as String?,
-        userName: j['userName'] as String?,
-        email: j['email'] as String?,
-        address: j['address'] is Map<String, dynamic>
-            ? UserAddress.fromJson(j['address'] as Map<String, dynamic>)
-            : null,
-        roles: (j['roles'] as List?)?.map((e) => e.toString()).toList() ??
-            const [],
-      );
+    userPublicId: j['userPublicId'] as String?,
+    firstName: j['firstName'] as String?,
+    lastName: j['lastName'] as String?,
+    userName: j['userName'] as String?,
+    email: j['email'] as String?,
+    address: j['address'] is Map<String, dynamic>
+        ? UserAddress.fromJson(j['address'] as Map<String, dynamic>)
+        : null,
+    roles: (j['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+  );
 }
 
 /// Admin-facing user summary (from GET /admin/user-list).
@@ -186,17 +193,16 @@ class AccountCategory {
   });
 
   factory AccountCategory.fromJson(Map<String, dynamic> j) => AccountCategory(
-        id: (j['id'] as num?)?.toInt(),
-        categoryName: j['categoryName'] as String?,
-        categoryImageUrl: j['categoryImageUrl'] as String?,
-        displayOrder: (j['displayOrder'] as num?)?.toInt(),
-      );
+    id: (j['id'] as num?)?.toInt(),
+    categoryName: j['categoryName'] as String?,
+    categoryImageUrl: j['categoryImageUrl'] as String?,
+    displayOrder: (j['displayOrder'] as num?)?.toInt(),
+  );
 
   // Value equality by id so dropdowns match across different instances
   // (e.g. a pre-filled category vs. one from the fetched list).
   @override
-  bool operator ==(Object other) =>
-      other is AccountCategory && other.id == id;
+  bool operator ==(Object other) => other is AccountCategory && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
@@ -211,17 +217,17 @@ class PriceOptions {
   PriceOptions({this.id, this.priceType, this.cost = 0, this.remark});
 
   factory PriceOptions.fromJson(Map<String, dynamic> j) => PriceOptions(
-        id: (j['id'] as num?)?.toInt(),
-        priceType: PriceType.fromWire(j['priceType'] as String?),
-        cost: (j['cost'] as num?)?.toDouble() ?? 0,
-        remark: j['remark'] as String?,
-      );
+    id: (j['id'] as num?)?.toInt(),
+    priceType: PriceType.fromWire(j['priceType'] as String?),
+    cost: (j['cost'] as num?)?.toDouble() ?? 0,
+    remark: j['remark'] as String?,
+  );
 
   Map<String, dynamic> toJson() => {
-        if (priceType != null) 'priceType': priceType!.wire,
-        'cost': cost,
-        if (remark != null) 'remark': remark,
-      };
+    if (priceType != null) 'priceType': priceType!.wire,
+    'cost': cost,
+    if (remark != null) 'remark': remark,
+  };
 }
 
 class InfluencerAccount {
@@ -265,18 +271,18 @@ class InfluencerAccount {
   /// Body for the update endpoint (keeps accountPublicId + id so the
   /// backend can locate the record).
   Map<String, dynamic> toUpdateJson() => {
-        if (id != null) 'id': id,
-        if (accountPublicId != null) 'accountPublicId': accountPublicId,
-        'title': title,
-        'description': description,
-        'accountURL': accountURL,
-        if (imageURL != null) 'imageURL': imageURL,
-        if (accountType != null) 'accountType': accountType!.wire,
-        'audienceCount': audienceCount,
-        'minViewPerPostCount': minViewPerPostCount,
-        'maxViewPerPostCount': maxViewPerPostCount,
-        'priceOptions': priceOptions.map((p) => p.toJson()).toList(),
-      };
+    if (id != null) 'id': id,
+    if (accountPublicId != null) 'accountPublicId': accountPublicId,
+    'title': title,
+    'description': description,
+    'accountURL': accountURL,
+    if (imageURL != null) 'imageURL': imageURL,
+    if (accountType != null) 'accountType': accountType!.wire,
+    'audienceCount': audienceCount,
+    'minViewPerPostCount': minViewPerPostCount,
+    'maxViewPerPostCount': maxViewPerPostCount,
+    'priceOptions': priceOptions.map((p) => p.toJson()).toList(),
+  };
 
   factory InfluencerAccount.fromJson(Map<String, dynamic> j) =>
       InfluencerAccount(
@@ -286,12 +292,12 @@ class InfluencerAccount {
         description: j['description'] as String?,
         accountURL: j['accountURL'] as String?,
         imageURL: j['imageURL'] as String?,
-        accountType: AccountType.fromWire(j['accountType'] as String?),
+        accountType: j['platform'] is Map<String, dynamic>
+            ? AccountType.fromJson(j['platform'] as Map<String, dynamic>)
+            : AccountType.fromWire(j['accountType'] as String?),
         audienceCount: (j['audienceCount'] as num?)?.toInt() ?? 0,
-        minViewPerPostCount:
-            (j['minViewPerPostCount'] as num?)?.toInt() ?? 0,
-        maxViewPerPostCount:
-            (j['maxViewPerPostCount'] as num?)?.toInt() ?? 0,
+        minViewPerPostCount: (j['minViewPerPostCount'] as num?)?.toInt() ?? 0,
+        maxViewPerPostCount: (j['maxViewPerPostCount'] as num?)?.toInt() ?? 0,
         priceOptions: ((j['priceOptions'] as List?) ?? const [])
             .map((e) => PriceOptions.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -325,21 +331,22 @@ class PromotionRequest {
   });
 
   factory PromotionRequest.fromJson(Map<String, dynamic> j) => PromotionRequest(
-        id: (j['id'] as num?)?.toInt(),
-        promotionRequestPublicId: j['promotionRequestPublicId'] as String?,
-        influencerAccount: j['influencerAccount'] is Map<String, dynamic>
-            ? InfluencerAccount.fromJson(
-                j['influencerAccount'] as Map<String, dynamic>)
-            : null,
-        dateList: ((j['dateList'] as List?) ?? const [])
-            .map((e) => DateTime.tryParse(e.toString()))
-            .whereType<DateTime>()
-            .toList(),
-        promotionText: j['promotionText'] as String?,
-        promoImageURL: j['promoImageURL'] as String?,
-        feedback: j['feedback'] as String?,
-        status: PromotionStatus.fromWire(j['promotionRequestStatus'] as String?),
-      );
+    id: (j['id'] as num?)?.toInt(),
+    promotionRequestPublicId: j['promotionRequestPublicId'] as String?,
+    influencerAccount: j['influencerAccount'] is Map<String, dynamic>
+        ? InfluencerAccount.fromJson(
+            j['influencerAccount'] as Map<String, dynamic>,
+          )
+        : null,
+    dateList: ((j['dateList'] as List?) ?? const [])
+        .map((e) => DateTime.tryParse(e.toString()))
+        .whereType<DateTime>()
+        .toList(),
+    promotionText: j['promotionText'] as String?,
+    promoImageURL: j['promoImageURL'] as String?,
+    feedback: j['feedback'] as String?,
+    status: PromotionStatus.fromWire(j['promotionRequestStatus'] as String?),
+  );
 }
 
 /// Generic parser for Spring Data's `Page<T>` JSON shape.

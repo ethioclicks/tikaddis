@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
@@ -29,18 +30,29 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
       backgroundColor: AppColors.neutral50,
       body: Column(
         children: [
-          const SafeArea(
+          SafeArea(
             bottom: false,
             child: Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Channels',
-                    style: TextStyle(
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Channels',
+                      style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
-                        color: AppColors.neutral900)),
+                        color: AppColors.neutral900,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => context.push('/admin/channel-options'),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Options'),
+                  ),
+                ],
               ),
             ),
           ),
@@ -59,8 +71,9 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
               data: (list) {
                 if (list.isEmpty) {
                   return const EmptyView(
-                      icon: Icons.storefront_outlined,
-                      message: 'No channels in this view.');
+                    icon: Icons.storefront_outlined,
+                    message: 'No channels in this view.',
+                  );
                 }
                 return RefreshIndicator(
                   color: AppColors.primary,
@@ -107,22 +120,28 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
       await ref.read(apiServiceProvider).adminApproveAccount(id, option);
       widget.onChanged();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(option == 'APPROVE'
-            ? 'Channel approved.'
-            : 'Channel disapproved.'),
-        backgroundColor: AppColors.primary,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            option == 'APPROVE' ? 'Channel approved.' : 'Channel disapproved.',
+          ),
+          backgroundColor: AppColors.primary,
+        ),
+      );
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       final data = e.response?.data;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(data is String && data.isNotEmpty
-            ? data
-            : 'Could not update the channel.'),
-        backgroundColor: const Color(0xFFB91C1C),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            data is String && data.isNotEmpty
+                ? data
+                : 'Could not update the channel.',
+          ),
+          backgroundColor: const Color(0xFFB91C1C),
+        ),
+      );
     }
   }
 
@@ -145,31 +164,40 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: Fmt.platformColor(a.accountType)
-                      .withValues(alpha: 0.12),
+                  color: Fmt.platformColor(
+                    a.accountType,
+                  ).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Fmt.platformIcon(a.accountType),
-                    color: Fmt.platformColor(a.accountType)),
+                child: Icon(
+                  Fmt.platformIcon(a.accountType),
+                  color: Fmt.platformColor(a.accountType),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(a.title ?? 'Untitled',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.neutral900,
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w600)),
                     Text(
-                      [a.accountType?.label, a.category?.categoryName]
-                          .where((e) => e != null)
-                          .join(' · '),
+                      a.title ?? 'Untitled',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          color: AppColors.neutral500, fontSize: 13),
+                        color: AppColors.neutral900,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      [
+                        a.accountType?.label,
+                        a.category?.categoryName,
+                      ].where((e) => e != null).join(' · '),
+                      style: const TextStyle(
+                        color: AppColors.neutral500,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -183,28 +211,39 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.group_outlined,
-                  size: 15, color: AppColors.neutral500),
+              const Icon(
+                Icons.group_outlined,
+                size: 15,
+                color: AppColors.neutral500,
+              ),
               const SizedBox(width: 4),
-              Text('${Fmt.compact(a.audienceCount)} audience',
-                  style: const TextStyle(
-                      color: AppColors.neutral600, fontSize: 12.5)),
+              Text(
+                '${Fmt.compact(a.audienceCount)} audience',
+                style: const TextStyle(
+                  color: AppColors.neutral600,
+                  fontSize: 12.5,
+                ),
+              ),
               const Spacer(),
               if (a.lowestCost != null)
-                Text('from ${Fmt.birr(a.lowestCost!)}',
-                    style: const TextStyle(
-                        color: AppColors.accentHover,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  'from ${Fmt.birr(a.lowestCost!)}',
+                  style: const TextStyle(
+                    color: AppColors.accentHover,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 14),
           if (_busy)
             const Center(
-                child: Padding(
-              padding: EdgeInsets.all(4),
-              child: DotsLoading(color: AppColors.primary),
-            ))
+              child: Padding(
+                padding: EdgeInsets.all(4),
+                child: DotsLoading(color: AppColors.primary),
+              ),
+            )
           else
             Row(
               children: [
@@ -244,18 +283,24 @@ class _Pill extends StatelessWidget {
         : (const Color(0xFFFFF7ED), AppColors.accentHover);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(text,
-          style:
-              TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }
 
 class _StatusFilter extends StatelessWidget {
-  const _StatusFilter(
-      {required this.value, required this.options, required this.onChanged});
+  const _StatusFilter({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
   final String value;
   final List<String> options;
   final ValueChanged<String> onChanged;
@@ -282,7 +327,8 @@ class _StatusFilter extends StatelessWidget {
                 color: sel ? AppColors.primary : Colors.white,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                    color: sel ? AppColors.primary : AppColors.neutral200),
+                  color: sel ? AppColors.primary : AppColors.neutral200,
+                ),
               ),
               child: Text(
                 opt[0] + opt.substring(1).toLowerCase(),

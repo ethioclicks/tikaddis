@@ -17,13 +17,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phone = TextEditingController();
+  final _identifier = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
 
   @override
   void dispose() {
-    _phone.dispose();
+    _identifier.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -43,9 +43,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final identifier = _identifier.text.trim();
+    final isPhone = RegExp(r'^[+\d\s()\-]+$').hasMatch(identifier);
     try {
-      await ref.read(authProvider.notifier).login(
-            normalizePhone(_phone.text),
+      await ref
+          .read(authProvider.notifier)
+          .login(
+            isPhone ? normalizePhone(identifier) : identifier,
             _password.text,
           );
       if (!mounted) return;
@@ -59,28 +63,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authProvider).isLoading;
+    final auth = ref.watch(authProvider);
+    final isLoading = auth.isLoading;
 
     return AuthScaffold(
       title: 'Welcome back',
-      subtitle: 'Sign in to continue to Tikaddis',
+      subtitle: auth.sessionExpired
+          ? 'Your session expired. Please sign in again.'
+          : 'Sign in to continue to Tikaddis',
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AuthField(
-              controller: _phone,
-              label: 'Phone number',
-              hint: '9•• ••• •••',
-              prefixText: '+251 ',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
+              controller: _identifier,
+              label: 'Phone number or username',
+              hint: '0912345678 or username',
+              icon: Icons.person_outline,
+              keyboardType: TextInputType.text,
               textInputAction: TextInputAction.next,
               validator: (v) {
-                final s = normalizePhone(v ?? '');
-                if (s.isEmpty) return 'Enter your phone number';
-                if (!RegExp(r'^0\d{9}$').hasMatch(s)) {
+                final identifier = (v ?? '').trim();
+                if (identifier.isEmpty) {
+                  return 'Enter your phone number or username';
+                }
+                final isPhone = RegExp(r'^[+\d\s()\-]+$').hasMatch(identifier);
+                if (isPhone &&
+                    !RegExp(r'^0\d{9}$').hasMatch(normalizePhone(identifier))) {
                   return 'Enter a valid phone number';
                 }
                 return null;
@@ -111,8 +121,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed:
-                    isLoading ? null : () => context.push('/forgot-password'),
+                onPressed: isLoading
+                    ? null
+                    : () => context.push('/forgot-password'),
                 child: const Text('Forgot password?'),
               ),
             ),
@@ -126,8 +137,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Don't have an account? ",
-                    style: TextStyle(color: AppColors.neutral500)),
+                const Text(
+                  "Don't have an account? ",
+                  style: TextStyle(color: AppColors.neutral500),
+                ),
                 GestureDetector(
                   onTap: isLoading ? null : () => context.push('/register'),
                   child: const Text(

@@ -31,8 +31,8 @@ class _PriceRowData {
   final TextEditingController cost;
   final TextEditingController remark;
   _PriceRowData(this.type)
-      : cost = TextEditingController(),
-        remark = TextEditingController();
+    : cost = TextEditingController(),
+      remark = TextEditingController();
   void dispose() {
     cost.dispose();
     remark.dispose();
@@ -118,19 +118,24 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
     final priceOptions = _prices
         .where((p) => p.cost.text.trim().isNotEmpty)
-        .map((p) => {
-              'priceType': p.type.wire,
-              'cost': double.tryParse(p.cost.text.trim()) ?? 0,
-              if (p.remark.text.trim().isNotEmpty)
-                'remark': p.remark.text.trim(),
-            })
+        .map(
+          (p) => {
+            'priceType': p.type.wire,
+            'cost': double.tryParse(p.cost.text.trim()) ?? 0,
+            if (p.remark.text.trim().isNotEmpty) 'remark': p.remark.text.trim(),
+          },
+        )
         .toList();
 
     final body = {
       'title': _title.text.trim(),
       'description': _description.text.trim(),
       'accountURL': _url.text.trim(),
-      'accountType': _accountType!.wire,
+      'accountType': AccountType.values.contains(_accountType)
+          ? _accountType!.wire
+          : null,
+      'platformCode': _accountType!.wire,
+      if (_isEdit) 'category': {'id': _category!.id},
       'audienceCount': int.tryParse(_audience.text.trim()) ?? 0,
       'minViewPerPostCount': int.tryParse(_minViews.text.trim()) ?? 0,
       'maxViewPerPostCount': int.tryParse(_maxViews.text.trim()) ?? 0,
@@ -147,8 +152,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
           ...body,
         });
         ref.invalidate(myAccountsProvider);
-        ref.invalidate(
-            accountDetailProvider(widget.editing!.accountPublicId!));
+        ref.invalidate(accountDetailProvider(widget.editing!.accountPublicId!));
       } else {
         await api.createInfluencerAccount(pid, _category!.id!, body);
         ref.invalidate(myAccountsProvider);
@@ -156,9 +160,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isEdit
-              ? 'Channel updated.'
-              : 'Account submitted for approval.'),
+          content: Text(
+            _isEdit ? 'Channel updated.' : 'Account submitted for approval.',
+          ),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -197,10 +201,10 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
+    final platforms = ref.watch(platformsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-          title: Text(_isEdit ? 'Edit channel' : 'Add a channel')),
+      appBar: AppBar(title: Text(_isEdit ? 'Edit channel' : 'Add a channel')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -212,20 +216,40 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 if (_error != null) _ErrorBanner(message: _error!),
 
                 _label('Platform'),
-                DropdownButtonFormField<AccountType>(
-                  initialValue: _accountType,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.devices_outlined),
-                    hintText: 'Select platform',
+                platforms.when(
+                  loading: () => const _InlineLoader(),
+                  error: (e, _) => _InlineError(
+                    message: "Couldn't load platforms.",
+                    onRetry: () => ref.invalidate(platformsProvider),
                   ),
-                  items: AccountType.values
-                      .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(t.label),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _accountType = v),
-                  validator: (v) => v == null ? 'Choose a platform' : null,
+                  data: (list) {
+                    if (list.isEmpty) {
+                      return const Text(
+                        'No platforms are available yet. '
+                        'Please contact the administrator.',
+                      );
+                    }
+                    final selected = _accountType;
+                    final items = {...list, ?selected}.toList();
+                    return DropdownButtonFormField<AccountType>(
+                      initialValue: selected,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.devices_outlined),
+                        hintText: 'Select platform',
+                      ),
+                      items: items
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _accountType = v),
+                      validator: (v) => v == null ? 'Choose a platform' : null,
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -236,6 +260,12 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     onRetry: () => ref.invalidate(categoriesProvider),
                   ),
                   data: (list) {
+                    if (list.isEmpty && _category == null) {
+                      return const Text(
+                        'No categories are available yet. '
+                        'Please contact the administrator.',
+                      );
+                    }
                     // Resolve the selected value to the exact instance in the
                     // fetched list (by id equality) to satisfy the dropdown.
                     final selected = _category == null
@@ -246,22 +276,22 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                           );
                     final items = {...list, ?selected}.toList();
                     return DropdownButtonFormField<AccountCategory>(
-                      initialValue:
-                          items.contains(selected) ? selected : null,
+                      initialValue: items.contains(selected) ? selected : null,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.category_outlined),
                         hintText: 'Select category',
                       ),
                       items: items
-                          .map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c.categoryName ?? 'Category'),
-                              ))
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(c.categoryName ?? 'Category'),
+                            ),
+                          )
                           .toList(),
                       onChanged: (v) => setState(() => _category = v),
-                      validator: (v) =>
-                          v == null ? 'Choose a category' : null,
+                      validator: (v) => v == null ? 'Choose a category' : null,
                     );
                   },
                 ),
@@ -294,22 +324,24 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     hintText: 'What is your channel about?',
                     counterText: '',
                   ),
-                  buildCounter: (context,
-                          {required currentLength,
-                          required isFocused,
-                          maxLength}) =>
-                      Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      '$currentLength/$maxLength',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: currentLength >= (maxLength ?? 255)
-                            ? const Color(0xFFB91C1C)
-                            : AppColors.neutral500,
+                  buildCounter:
+                      (
+                        context, {
+                        required currentLength,
+                        required isFocused,
+                        maxLength,
+                      }) => Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '$currentLength/$maxLength',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: currentLength >= (maxLength ?? 255)
+                                ? const Color(0xFFB91C1C)
+                                : AppColors.neutral500,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
                   validator: (v) {
                     final s = (v ?? '').trim();
                     if (s.isEmpty) return 'Enter a description';
@@ -396,23 +428,27 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     TextButton.icon(
                       onPressed: _submitting
                           ? null
-                          : () => setState(() =>
-                              _prices.add(_PriceRowData(PriceType.perView))),
+                          : () => setState(
+                              () =>
+                                  _prices.add(_PriceRowData(PriceType.perView)),
+                            ),
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('Add price'),
                     ),
                   ],
                 ),
-                ..._prices.asMap().entries.map((e) => _PriceRow(
-                      key: ValueKey(e.value),
-                      data: e.value,
-                      canRemove: _prices.length > 1,
-                      onTypeChanged: (t) => setState(() => e.value.type = t),
-                      onRemove: () {
-                        e.value.dispose();
-                        setState(() => _prices.removeAt(e.key));
-                      },
-                    )),
+                ..._prices.asMap().entries.map(
+                  (e) => _PriceRow(
+                    key: ValueKey(e.value),
+                    data: e.value,
+                    canRemove: _prices.length > 1,
+                    onTypeChanged: (t) => setState(() => e.value.type = t),
+                    onRemove: () {
+                      e.value.dispose();
+                      setState(() => _prices.removeAt(e.key));
+                    },
+                  ),
+                ),
                 const SizedBox(height: 28),
 
                 ElevatedButton(
@@ -437,16 +473,16 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   }
 
   Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: AppColors.neutral900,
-            fontSize: 14.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: AppColors.neutral900,
+        fontSize: 14.5,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 }
 
 class _PriceRow extends StatelessWidget {
@@ -476,8 +512,7 @@ class _PriceRow extends StatelessWidget {
               isExpanded: true,
               decoration: const InputDecoration(isDense: true),
               items: PriceType.values
-                  .map((t) =>
-                      DropdownMenuItem(value: t, child: Text(t.label)))
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
                   .toList(),
               onChanged: (v) => v == null ? null : onTypeChanged(v),
             ),
@@ -497,8 +532,10 @@ class _PriceRow extends StatelessWidget {
           ),
           if (canRemove)
             IconButton(
-              icon: const Icon(Icons.remove_circle_outline,
-                  color: Color(0xFFB91C1C)),
+              icon: const Icon(
+                Icons.remove_circle_outline,
+                color: Color(0xFFB91C1C),
+              ),
               onPressed: onRemove,
             ),
         ],
@@ -511,50 +548,56 @@ class _InlineLoader extends StatelessWidget {
   const _InlineLoader();
   @override
   Widget build(BuildContext context) => Container(
-        height: 56,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppColors.neutral50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.neutral200),
+    height: 56,
+    alignment: Alignment.centerLeft,
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    decoration: BoxDecoration(
+      color: AppColors.neutral50,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.neutral200),
+    ),
+    child: const Row(
+      children: [
+        SizedBox(
+          height: 18,
+          width: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        child: const Row(
-          children: [
-            SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 12),
-            Text('Loading categories...',
-                style: TextStyle(color: AppColors.neutral500)),
-          ],
+        SizedBox(width: 12),
+        Text(
+          'Loading categories...',
+          style: TextStyle(color: AppColors.neutral500),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _InlineError extends StatelessWidget {
-  const _InlineError({required this.onRetry});
+  const _InlineError({required this.onRetry,
+    this.message = "Couldn't load categories."});
   final VoidCallback onRetry;
+  final String message;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFECACA)),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFEF2F2),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFFECACA)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(color: Color(0xFFB91C1C)),
+          ),
         ),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Text("Couldn't load categories.",
-                  style: TextStyle(color: Color(0xFFB91C1C))),
-            ),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      );
+        TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
+    ),
+  );
 }
 
 class _ErrorBanner extends StatelessWidget {

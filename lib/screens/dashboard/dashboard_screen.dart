@@ -145,33 +145,44 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              // Tappable: jumps to the Profile tab. Gives the avatar a purpose
-              // beyond decoration.
+              // Notification bell with an unread badge; opens the
+              // notifications page.
               Material(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () => context.go('/profile'),
+                  onTap: () => context.push('/notifications'),
                   child: Container(
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35),
-                        width: 1.5,
-                      ),
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        const Icon(Icons.notifications_rounded,
+                            color: AppColors.primary, size: 24),
+                        // Unread badge.
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            width: 11,
+                            height: 11,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white, width: 1.8),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

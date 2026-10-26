@@ -41,7 +41,7 @@ class Fmt {
         return const Color(0xFF1877F2);
       case AccountType.instagram:
         return const Color(0xFFC13584);
-      case null:
+      default:
         return AppColors.primary;
     }
   }
@@ -59,7 +59,7 @@ class Fmt {
         return Icons.facebook_outlined;
       case AccountType.instagram:
         return Icons.camera_alt_outlined;
-      case null:
+      default:
         return Icons.public;
     }
   }
@@ -89,16 +89,22 @@ class LoadingView extends StatelessWidget {
   const LoadingView({super.key});
   @override
   Widget build(BuildContext context) => const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-        ),
-      );
+    child: CircularProgressIndicator(
+      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+    ),
+  );
 }
 
 class ErrorView extends StatelessWidget {
-  const ErrorView({super.key, required this.message, this.onRetry});
+  const ErrorView({
+    super.key,
+    required this.message,
+    this.onRetry,
+    this.action,
+  });
   final String message;
   final VoidCallback? onRetry;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +125,7 @@ class ErrorView extends StatelessWidget {
               const SizedBox(height: 16),
               OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
             ],
+            if (action != null) ...[const SizedBox(height: 8), action!],
           ],
         ),
       ),
@@ -147,8 +154,11 @@ class EmptyView extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon ?? Icons.inbox_outlined,
-                  size: 40, color: AppColors.primary),
+              child: Icon(
+                icon ?? Icons.inbox_outlined,
+                size: 40,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -160,10 +170,7 @@ class EmptyView extends StatelessWidget {
                 height: 1.4,
               ),
             ),
-            if (action != null) ...[
-              const SizedBox(height: 20),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 20), action!],
           ],
         ),
       ),
@@ -198,8 +205,10 @@ class CollapsingTitleBar extends StatelessWidget {
           // Progress 0 (expanded) -> 1 (collapsed).
           final maxH = 76 + top;
           final minH = 56 + top;
-          final t = ((maxH - constraints.maxHeight) / (maxH - minH))
-              .clamp(0.0, 1.0);
+          final t = ((maxH - constraints.maxHeight) / (maxH - minH)).clamp(
+            0.0,
+            1.0,
+          );
           final fontSize = 30 - (12 * t); // 30 -> 18
           return Container(
             color: AppColors.neutral50,

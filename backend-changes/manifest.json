@@ -1,0 +1,50 @@
+[
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\controllers\\ChannelOptionsController.java",
+        "originalHash":  null
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\controllers\\ChannelOptionsExceptionAdvice.java",
+        "originalHash":  null
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\entity\\ChannelPlatform.java",
+        "originalHash":  null
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\entity\\InfluencerAccount.java",
+        "originalHash":  "0C41224B88BFB5C102695C644CEF321D4A0D15E1C90A01639B0216A7E8A9E6A0"
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\repos\\AccountCategoryRepository.java",
+        "originalHash":  "BAD19375D671E8B631C8C5726B509E6926F3D40C756E869C94AAF207D2B2EA18"
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\repos\\ChannelPlatformRepository.java",
+        "originalHash":  null
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\repos\\InfluencerAccountRepository.java",
+        "originalHash":  "FC1C760934FED48E8DE4B5B7F1A4772B643B0E9C66243B05E57678B5815A4EA2"
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\services\\ChannelPlatformService.java",
+        "originalHash":  null
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\services\\impl\\AccountCategoryServiceImpl.java",
+        "originalHash":  "6395DEC974955ECA9657E0A26ECEFA6879845EA10F3630B5DA85818CB2FFC584"
+    },
+    {
+        "path":  "src\\main\\java\\com\\ethioclicks\\ethioPromo\\bussinesLogic\\services\\impl\\InfluencerAccountServiceImpl.java",
+        "originalHash":  "0D8DDE553B86D8138AABC1B116B36598F4AD04244791F4F06B503310D8F68114"
+    },
+    {
+        "path":  "src\\test\\java\\com\\ethioclicks\\ethioPromo\\ChannelOptionsPersistenceTest.java",
+        "originalHash":  null
+    },
+    {
+        "path":  "src\\test\\java\\com\\ethioclicks\\ethioPromo\\ChannelOptionsTest.java",
+        "originalHash":  null
+    }
+]

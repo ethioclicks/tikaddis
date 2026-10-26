@@ -18,8 +18,10 @@ import '../screens/browse/browse_screen.dart';
 import '../screens/browse/account_detail_screen.dart';
 import '../screens/promotions/create_promotion_screen.dart';
 import '../screens/promotions/my_promotions_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
 import '../screens/shell/home_shell.dart';
 import '../screens/admin/admin_shell.dart';
+import '../screens/admin/admin_channel_options_screen.dart';
 import '../screens/admin/admin_overview_screen.dart';
 import '../screens/admin/admin_channels_screen.dart';
 import '../screens/admin/admin_promotions_screen.dart';
@@ -174,6 +176,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Detail / flow routes pushed on top of the shell (full screen).
       GoRoute(
           parentNavigatorKey: _rootKey,
+          path: '/admin/channel-options',
+          builder: (context, state) => const AdminChannelOptionsScreen()),
+      GoRoute(
+          parentNavigatorKey: _rootKey,
           path: '/browse-detail/:accountId',
           builder: (context, state) => AccountDetailScreen(
               accountId: state.pathParameters['accountId']!)),
@@ -203,6 +209,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/channel/:accountId',
           builder: (context, state) => ChannelDetailScreen(
               accountId: state.pathParameters['accountId']!)),
+      GoRoute(
+          parentNavigatorKey: _rootKey,
+          path: '/notifications',
+          builder: (context, state) => const NotificationsScreen()),
     ],
   );
 });
