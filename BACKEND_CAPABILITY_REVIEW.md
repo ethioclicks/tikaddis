@@ -1,6 +1,6 @@
 # Tikaddis backend capability review
 
-Updated on October 28, 2026, against backend source commit `216b681`.
+Updated on October 29, 2026, against backend source commit `508fe51`.
 This replaces the earlier review of `f9f8c15`; the old authorization findings
 listed below as corrected should not be treated as current unresolved defects.
 
@@ -12,6 +12,12 @@ The backend update at `216b681` passed 29 backend tests, was deployed through
 CI/CD, and received read-only live verification of its capability marker, schema
 mode, category preservation, promotion-list response and attachment access rules.
 That does not establish that the planned content-review workflow exists.
+
+Notification commit `508fe51` subsequently adds a durable owner-scoped inbox,
+live SSE updates, unread counts, read/archive controls, preferences and real
+business-event notifications. Its backend test suite passes 38 tests. Mobile
+commit `155dc98` includes the inbox UI and live connection, with 31 mobile tests
+passing and clean static analysis. See [the notification implementation](NOTIFICATIONS_IMPLEMENTATION.md).
 
 The approved product direction is now **direct requester–creator collaboration**.
 See [the architecture plan](CONTENT_APPROVAL_ARCHITECTURE.md) for the proposed
@@ -27,6 +33,8 @@ represented by the request's current status. Detailed campaign briefs and privat
 request attachments are implemented. Draft review, versioned creative approvals,
 publication evidence and requester delivery acceptance are not yet implemented.
 There is no implemented campaign performance-tracking engine.
+Real notifications now reflect the current workflow; they do not turn manual
+promotion statuses into verified delivery or performance results.
 
 ## Implemented in the backend
 
@@ -43,6 +51,8 @@ There is no implemented campaign performance-tracking engine.
 | Private request attachments | Up to five JPG/PNG/PDF files, 5 MB each; metadata and binary content stored separately in the database; authenticated downloads |
 | Lists and moderation | Paginated participant/admin lists, status filtering, admin review before creator visibility, owner-checked creator decisions and initial-request cancellation |
 | Channel moderation fixes | Repeated approval succeeds consistently; disapproval returns success after saving; mobile list refresh and action state corrected |
+| Real notifications | Durable per-recipient inbox, live SSE synchronization, unread counts, read/unread, mark-all-read, archive/restore, alert preferences and paginated history |
+| Notification events | Registration, creator applications/access changes, channel events, and promotion submission/review/acceptance/running/fulfilled/withdrawal |
 
 Several legacy service methods for featured businesses, keyword searches, and tag
 options return `null`. These method names do not establish working features.
@@ -134,14 +144,16 @@ workflow behind that field.
 | Automatic publishing | No posting integration, bot, scheduled publisher, or automatic campaign start/finish job found |
 | Financial agreement | Proposed budget exists; no mutually accepted scope/price snapshot, counterproposal or payable amount |
 | Payments | No payment transaction, receipt verification, webhook, escrow, payout, refund, or reconciliation flow found |
-| Campaign notifications | No backend notification records, push delivery, or event notifications found |
+| Future workflow notifications | Existing-workflow notifications work; draft/comment/revision/publication/delivery events await those workflow features |
+| Closed-app phone push | Not configured; Firebase project and device/server integration are still required |
 | Support/dispute cases | No dedicated case records, case-scoped staff grants, holds or resolution workflow |
 
 `PER_CLICK`, `PER_VIEW`, and `PER_DAY` are pricing types. They do not implement
 click measurement, view measurement, or automatic billing.
 
-The mobile notification screen currently contains hardcoded demonstration
-messages. Its displayed relative times are not a backend activity timeline.
+The mobile notification screen now loads real backend messages and timestamps.
+Its inbox is not a full campaign activity timeline: draft versions, review
+decisions and campaign event history still require the planned workflow records.
 
 ## Authorization fixes and remaining workflow differences
 
@@ -195,8 +207,8 @@ A useful complete first workflow can work without automatic social-platform APIs
    formal revision requests. Script approval is separate from final-video approval.
 4. Add per-item publication links/evidence and requester delivery acceptance.
    Derive normal completion from all required deliverables, without admin approval.
-5. Record real activity events and create real in-app notifications for each
-   relevant participant action.
+5. Record real campaign activity events and extend the existing notification
+   service to new draft/revision/publication/delivery actions.
 6. Provide separate support/report/dispute cases with scoped staff access and
    audited exceptional outcomes, never impersonated participant approvals.
 7. Add reusable content templates and format-specific fields; preserve populated
@@ -222,8 +234,11 @@ on these records later. They should not be represented as existing functionality
 - `bussinesLogic/controllers/PromotionController.java`: creator acceptance and lists.
 - `security/service/impl/UserServiceImplementation.java`: admin approval behavior.
 - `security/service/CurrentActor.java`: authenticated participant and admin checks.
+- `notifications/NotificationService.java` and `NotificationController.java`: owner-only inbox management, preferences and SSE snapshots.
+- `notifications/NotificationEvents.java`: events connected to existing business transactions.
 - `bussinesLogic/entity/InfluencerAccount.java`: channel metadata and statistics relations.
 - `bussinesLogic/entity/TopViewCount.java` and `RecentViewCount.java`: stored post counts.
 - `bussinesLogic/services/impl/InfluencerAccountServiceImpl.java`: supplied channel data and legacy stubs.
 - `security/enums/PriceTypeEnum.java`: pricing labels.
-- Mobile `lib/screens/notifications/notifications_screen.dart`: demonstration notification data.
+- Mobile `lib/screens/notifications/notifications_screen.dart`: real inbox and management controls.
+- Mobile `lib/providers/notification_provider.dart`: live reconnect, resync, account isolation and unread state.

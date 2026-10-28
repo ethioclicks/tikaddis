@@ -1,6 +1,9 @@
 # Live notification inbox
 
 Implemented for the existing Tikaddis promotion/channel/account workflows.
+Backend commit: `508fe51`. Mobile implementation commit: `155dc98`.
+Validated with 38 backend tests, 31 mobile tests, clean Dart analysis and a
+successful Android debug APK build.
 Background phone push is not configured: the project has no Firebase setup yet.
 
 ## User experience

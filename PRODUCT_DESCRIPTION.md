@@ -112,6 +112,9 @@ information, private account details, and information shared for a promotion.
   image hosting providers and whether images load directly from third-party servers.
 - The reviewed Flutter dependencies do not include an advertising or analytics SDK.
   Confirm any backend, hosting, monitoring, or website analytics separately.
+- Notification records and alert preferences are stored by the backend. Live
+  in-app updates use an authenticated connection; closed-app phone push is not
+  configured. Archiving and account soft deletion retain these records.
 - The product stores promotion prices. The reviewed mobile implementation does
   not establish an integrated payment-processing flow; do not claim that it
   collects card or bank details without checking the deployed service.

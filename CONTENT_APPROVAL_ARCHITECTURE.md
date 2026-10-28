@@ -5,6 +5,11 @@ This proposes the next implementation; the workflow below is not deployed yet.
 Revised direction: direct requester–creator collaboration. Admin approval is not
 part of sending a request, accepting work, reviewing content or confirming delivery.
 
+Implementation update, October 29: the current-workflow notification inbox and
+live delivery infrastructure now exist in backend commit `508fe51` and mobile
+commit `155dc98`. Reuse them for the proposed draft/review/delivery events below.
+The direct-booking/content-approval workflow itself remains a plan.
+
 ## 1. Product direction
 
 Give each promotion a shared workspace where the requester and creator agree on
@@ -351,8 +356,9 @@ to submissions and review decisions so mobile retries do not duplicate work.
 
 Save events and notification outbox entries in the same transaction as each
 decision. A background worker delivers notifications with retry and deduplication.
-Start with real in-app notifications, then push notifications. Replace the
-existing demonstration notification list with server-backed records.
+Extend the existing real in-app notification service to the new workflow events,
+then connect phone push when Firebase is configured. The demonstration inbox has
+already been replaced with server-backed records for the existing workflow.
 
 ### Proposed API shape
 
