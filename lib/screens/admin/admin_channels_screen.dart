@@ -1,3 +1,4 @@
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,9 +86,18 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
                     itemBuilder: (_, i) => _AdminChannelCard(
+                      key: ValueKey(list[i].accountPublicId),
                       account: list[i],
-                      onChanged: () =>
-                          ref.invalidate(adminAccountsProvider(_status)),
+                      onChanged: () {
+                        ref.invalidate(adminAccountsProvider);
+                        ref.invalidate(myAccountsProvider);
+                        ref.invalidate(approvedAccountsProvider);
+                        if (list[i].accountPublicId != null) {
+                          ref.invalidate(
+                            accountDetailProvider(list[i].accountPublicId!),
+                          );
+                        }
+                      },
                     ),
                   ),
                 );
@@ -101,7 +111,11 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
 }
 
 class _AdminChannelCard extends ConsumerStatefulWidget {
-  const _AdminChannelCard({required this.account, required this.onChanged});
+  const _AdminChannelCard({
+    super.key,
+    required this.account,
+    required this.onChanged,
+  });
   final InfluencerAccount account;
   final VoidCallback onChanged;
 
@@ -111,6 +125,12 @@ class _AdminChannelCard extends ConsumerStatefulWidget {
 
 class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
   bool _busy = false;
+  bool? _approved;
+  @override
+  void didUpdateWidget(covariant _AdminChannelCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.account.approved != widget.account.approved) _approved = null;
+  }
 
   Future<void> _act(String option) async {
     final id = widget.account.accountPublicId;
@@ -118,36 +138,32 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
     setState(() => _busy = true);
     try {
       await ref.read(apiServiceProvider).adminApproveAccount(id, option);
-      widget.onChanged();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            option == 'APPROVE' ? 'Channel approved.' : 'Channel disapproved.',
-          ),
-          backgroundColor: AppColors.primary,
-        ),
+      setState(() => _approved = option == 'APPROVE');
+      widget.onChanged();
+      AppToast.success(
+        context,
+        option == 'APPROVE' ? 'Channel approved.' : 'Channel disapproved.',
       );
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       final data = e.response?.data;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            data is String && data.isNotEmpty
-                ? data
-                : 'Could not update the channel.',
-          ),
-          backgroundColor: const Color(0xFFB91C1C),
-        ),
+      AppToast.error(
+        context,
+        data is String && data.isNotEmpty
+            ? data
+            : 'Could not update the channel.',
       );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final a = widget.account;
+    final approved = _approved ?? a.approved;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -203,8 +219,8 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
                 ),
               ),
               _Pill(
-                text: a.approved ? 'Approved' : 'Pending',
-                approved: a.approved,
+                text: approved ? 'Approved' : 'Pending / disapproved',
+                approved: approved,
               ),
             ],
           ),
@@ -249,7 +265,7 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => _act('DISAPPROVE'),
+                    onPressed: approved ? () => _act('DISAPPROVE') : null,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFB91C1C),
                       side: const BorderSide(color: Color(0xFFFECACA)),
@@ -260,8 +276,8 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _act('APPROVE'),
-                    child: const Text('Approve'),
+                    onPressed: approved ? null : () => _act('APPROVE'),
+                    child: Text(approved ? 'Approved' : 'Approve'),
                   ),
                 ),
               ],

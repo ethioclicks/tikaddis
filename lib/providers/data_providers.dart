@@ -3,6 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import 'auth_provider.dart';
 
+final notificationPromotionProvider = FutureProvider.autoDispose
+    .family<PromotionRequest, String>((ref, id) async {
+      final response = await ref
+          .read(apiServiceProvider)
+          .getPromotionRequest(id);
+      return PromotionRequest.fromJson(response.data as Map<String, dynamic>);
+    });
+
 /// Current user's profile (GET /user).
 final profileProvider = FutureProvider.autoDispose<UserProfile>((ref) async {
   final api = ref.read(apiServiceProvider);
@@ -114,7 +122,17 @@ final influencerRequestsProvider =
         res.data,
         PromotionRequest.fromJson,
       );
-      return page.content;
+      return page.content
+          .where(
+            (r) => const {
+              PromotionStatus.adminApproved,
+              PromotionStatus.ownerApproved,
+              PromotionStatus.ownerRejected,
+              PromotionStatus.running,
+              PromotionStatus.fulfilled,
+            }.contains(r.status),
+          )
+          .toList();
     });
 
 // ---------------- Admin providers ----------------

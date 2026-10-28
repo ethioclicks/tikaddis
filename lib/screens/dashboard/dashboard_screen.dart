@@ -1,3 +1,4 @@
+import '../../widgets/notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -36,14 +37,19 @@ class DashboardScreen extends ConsumerWidget {
                   children: [
                     _StatsRow(
                       total: myPromos.maybeWhen(
-                          data: (l) => l.length, orElse: () => null),
+                        data: (l) => l.length,
+                        orElse: () => null,
+                      ),
                       running: myPromos.maybeWhen(
-                          data: (l) => l
-                              .where((p) =>
+                        data: (l) => l
+                            .where(
+                              (p) =>
                                   p.status?.wire == 'RUNNING' ||
-                                  p.status?.wire == 'ACCOUNT_OWNER_APPROVED')
-                              .length,
-                          orElse: () => null),
+                                  p.status?.wire == 'ACCOUNT_OWNER_APPROVED',
+                            )
+                            .length,
+                        orElse: () => null,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     const _SectionTitle('Quick actions'),
@@ -116,7 +122,11 @@ class _Header extends StatelessWidget {
         radius: 44,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-              22, MediaQuery.of(context).padding.top + 22, 22, 48),
+            22,
+            MediaQuery.of(context).padding.top + 22,
+            22,
+            48,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -145,47 +155,12 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              // Notification bell with an unread badge; opens the
-              // notifications page.
-              Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () => context.push('/notifications'),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    alignment: Alignment.center,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.center,
-                      children: [
-                        const Icon(Icons.notifications_rounded,
-                            color: AppColors.primary, size: 24),
-                        // Unread badge.
-                        Positioned(
-                          top: -2,
-                          right: -2,
-                          child: Container(
-                            width: 11,
-                            height: 11,
-                            decoration: BoxDecoration(
-                              color: AppColors.accent,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white, width: 1.8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
+                child: const NotificationBell(),
               ),
             ],
           ),
@@ -414,8 +389,11 @@ class _ActionCard extends StatelessWidget {
                     color: AppColors.neutral100,
                     borderRadius: BorderRadius.circular(9),
                   ),
-                  child: const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 13, color: AppColors.neutral500),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: AppColors.neutral500,
+                  ),
                 ),
               ],
             ),
@@ -477,8 +455,11 @@ class _MiniPromo extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Fmt.platformIcon(account?.accountType),
-              size: 20, color: AppColors.primary),
+          Icon(
+            Fmt.platformIcon(account?.accountType),
+            size: 20,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

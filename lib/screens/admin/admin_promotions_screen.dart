@@ -1,3 +1,5 @@
+import '../../widgets/promotion_brief_details.dart';
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,8 +20,7 @@ class AdminPromotionsScreen extends ConsumerStatefulWidget {
       _AdminPromotionsScreenState();
 }
 
-class _AdminPromotionsScreenState
-    extends ConsumerState<AdminPromotionsScreen> {
+class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
   PromotionStatus? _filter;
 
   @override
@@ -36,12 +37,15 @@ class _AdminPromotionsScreenState
               padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Promotions',
-                    style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: AppColors.neutral900)),
+                child: Text(
+                  'Promotions',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AppColors.neutral900,
+                  ),
+                ),
               ),
             ),
           ),
@@ -60,8 +64,9 @@ class _AdminPromotionsScreenState
               data: (list) {
                 if (list.isEmpty) {
                   return const EmptyView(
-                      icon: Icons.campaign_outlined,
-                      message: 'No promotion requests here.');
+                    icon: Icons.campaign_outlined,
+                    message: 'No promotion requests here.',
+                  );
                 }
                 return RefreshIndicator(
                   color: AppColors.primary,
@@ -74,8 +79,9 @@ class _AdminPromotionsScreenState
                         const SizedBox(height: 12),
                     itemBuilder: (_, i) => _AdminPromoCard(
                       request: list[i],
-                      onChanged: () => ref
-                          .invalidate(adminPromotionsProvider(_filter?.wire)),
+                      onChanged: () => ref.invalidate(
+                        adminPromotionsProvider(_filter?.wire),
+                      ),
                     ),
                   ),
                 );
@@ -106,18 +112,17 @@ class _AdminPromoCardState extends ConsumerState<_AdminPromoCard> {
       await action();
       widget.onChanged();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(okMsg), backgroundColor: AppColors.primary));
+      AppToast.success(context, okMsg);
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       final data = e.response?.data;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(data is String && data.isNotEmpty
-            ? data
-            : 'Action failed.'),
-        backgroundColor: const Color(0xFFB91C1C),
-      ));
+      AppToast.error(
+        context,
+        data is String && data.isNotEmpty ? data : 'Action failed.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -145,80 +150,105 @@ class _AdminPromoCardState extends ConsumerState<_AdminPromoCard> {
         children: [
           Row(
             children: [
-              Icon(Fmt.platformIcon(r.influencerAccount?.accountType),
-                  size: 18, color: AppColors.primary),
+              Icon(
+                Fmt.platformIcon(r.influencerAccount?.accountType),
+                size: 18,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(r.influencerAccount?.title ?? 'Channel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.neutral900,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
+                child: Text(
+                  r.influencerAccount?.title ?? 'Channel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.neutral900,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               StatusBadge(status: status),
             ],
           ),
+          PromotionBriefDetails(request: r),
           if ((r.promotionText ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text(r.promotionText!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: AppColors.neutral600, fontSize: 13.5, height: 1.4)),
+            Text(
+              r.promotionText!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.neutral600,
+                fontSize: 13.5,
+                height: 1.4,
+              ),
+            ),
           ],
           if (r.dateList.isNotEmpty) ...[
             const SizedBox(height: 10),
-            Row(children: [
-              const Icon(Icons.event_outlined,
-                  size: 15, color: AppColors.neutral500),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(r.dateList.map(Fmt.date).join(', '),
+            Row(
+              children: [
+                const Icon(
+                  Icons.event_outlined,
+                  size: 15,
+                  color: AppColors.neutral500,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    r.dateList.map(Fmt.date).join(', '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        color: AppColors.neutral500, fontSize: 12.5)),
-              ),
-            ]),
+                      color: AppColors.neutral500,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
-          if (id != null &&
-              (canAdminApprove || canRun || canFulfill)) ...[
+          if (id != null && (canAdminApprove || canRun || canFulfill)) ...[
             const SizedBox(height: 14),
             if (_busy)
               const Center(child: DotsLoading(color: AppColors.primary))
             else if (canAdminApprove)
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _run(
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _run(
                         () => api.adminApproveRejectPromotion(id, 'DISAPPROVE'),
-                        'Request rejected.'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB91C1C),
-                      side: const BorderSide(color: Color(0xFFFECACA)),
+                        'Request rejected.',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFB91C1C),
+                        side: const BorderSide(color: Color(0xFFFECACA)),
+                      ),
+                      child: const Text('Reject'),
                     ),
-                    child: const Text('Reject'),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _run(
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _run(
                         () => api.adminApproveRejectPromotion(id, 'APPROVE'),
-                        'Request approved.'),
-                    child: const Text('Approve'),
+                        'Request approved.',
+                      ),
+                      child: const Text('Approve'),
+                    ),
                   ),
-                ),
-              ])
+                ],
+              )
             else if (canRun)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _run(
-                      () => api.adminTransitionRunning(id),
-                      'Promotion is now running.'),
+                    () => api.adminTransitionRunning(id),
+                    'Promotion is now running.',
+                  ),
                   icon: const Icon(Icons.play_arrow_rounded, size: 20),
                   label: const Text('Mark as running'),
                 ),
@@ -228,8 +258,9 @@ class _AdminPromoCardState extends ConsumerState<_AdminPromoCard> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _run(
-                      () => api.adminTransitionFulfilled(id),
-                      'Promotion fulfilled.'),
+                    () => api.adminTransitionFulfilled(id),
+                    'Promotion fulfilled.',
+                  ),
                   icon: const Icon(Icons.check_rounded, size: 20),
                   label: const Text('Mark as fulfilled'),
                 ),
@@ -276,13 +307,17 @@ class _Filter extends StatelessWidget {
                 color: sel ? AppColors.primary : Colors.white,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                    color: sel ? AppColors.primary : AppColors.neutral200),
+                  color: sel ? AppColors.primary : AppColors.neutral200,
+                ),
               ),
-              child: Text(opt?.label ?? 'All',
-                  style: TextStyle(
-                      color: sel ? Colors.white : AppColors.neutral700,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13)),
+              child: Text(
+                opt?.label ?? 'All',
+                style: TextStyle(
+                  color: sel ? Colors.white : AppColors.neutral700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
             ),
           );
         },

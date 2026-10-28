@@ -1,3 +1,4 @@
+import '../../widgets/promotion_brief_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,8 +14,7 @@ class MyPromotionsScreen extends ConsumerStatefulWidget {
   const MyPromotionsScreen({super.key});
 
   @override
-  ConsumerState<MyPromotionsScreen> createState() =>
-      _MyPromotionsScreenState();
+  ConsumerState<MyPromotionsScreen> createState() => _MyPromotionsScreenState();
 }
 
 class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
@@ -48,10 +48,8 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
           data: (all) {
             final q = _query.trim().toLowerCase();
             final rows = all.where((r) {
-              final matchesStatus =
-                  _filter == null || r.status == _filter;
-              final title =
-                  (r.influencerAccount?.title ?? '').toLowerCase();
+              final matchesStatus = _filter == null || r.status == _filter;
+              final title = (r.influencerAccount?.title ?? '').toLowerCase();
               final text = (r.promotionText ?? '').toLowerCase();
               final matchesQuery =
                   q.isEmpty || title.contains(q) || text.contains(q);
@@ -59,10 +57,12 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
             }).toList();
 
             final activeCount = all
-                .where((r) =>
-                    r.status == PromotionStatus.running ||
-                    r.status == PromotionStatus.adminApproved ||
-                    r.status == PromotionStatus.ownerApproved)
+                .where(
+                  (r) =>
+                      r.status == PromotionStatus.running ||
+                      r.status == PromotionStatus.adminApproved ||
+                      r.status == PromotionStatus.ownerApproved,
+                )
                 .length;
 
             return ListView(
@@ -162,8 +162,11 @@ class _SearchBar extends StatelessWidget {
       decoration: InputDecoration(
         hintText: 'Search promotions',
         hintStyle: const TextStyle(color: AppColors.neutral500, fontSize: 14.5),
-        prefixIcon: const Icon(Icons.search_rounded,
-            color: AppColors.neutral500, size: 21),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: AppColors.neutral500,
+          size: 21,
+        ),
         filled: true,
         fillColor: AppColors.neutral50,
         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
@@ -281,8 +284,11 @@ class _PromotionCard extends StatelessWidget {
                     ),
                     child: hasImage
                         ? null
-                        : Icon(Fmt.platformIcon(account?.accountType),
-                            color: pColor, size: 20),
+                        : Icon(
+                            Fmt.platformIcon(account?.accountType),
+                            color: pColor,
+                            size: 20,
+                          ),
                   ),
                   Positioned(
                     right: -1,
@@ -295,8 +301,11 @@ class _PromotionCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: Icon(Fmt.platformIcon(account?.accountType),
-                          color: Colors.white, size: 9),
+                      child: Icon(
+                        Fmt.platformIcon(account?.accountType),
+                        color: Colors.white,
+                        size: 9,
+                      ),
                     ),
                   ),
                 ],
@@ -331,6 +340,7 @@ class _PromotionCard extends StatelessWidget {
               StatusBadge(status: request.status),
             ],
           ),
+          PromotionBriefDetails(request: request),
           if ((request.promotionText ?? '').isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -349,8 +359,11 @@ class _PromotionCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.event_rounded,
-                  size: 15, color: AppColors.neutral500),
+              const Icon(
+                Icons.event_rounded,
+                size: 15,
+                color: AppColors.neutral500,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -389,8 +402,11 @@ class _PromotionCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.chat_bubble_outline,
-                      size: 14, color: AppColors.neutral500),
+                  const Icon(
+                    Icons.chat_bubble_outline,
+                    size: 14,
+                    color: AppColors.neutral500,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(

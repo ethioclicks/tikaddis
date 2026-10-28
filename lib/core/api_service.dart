@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'session_token.dart';
@@ -59,6 +60,39 @@ class ApiService {
   }
 
   Dio get dio => _dio;
+
+  Future<Response> getNotifications({
+    String filter = 'ALL',
+    int page = 0,
+    int size = 20,
+  }) => _dio.get(
+    '/account/notifications',
+    queryParameters: {'filter': filter, 'page': page, 'size': size},
+  );
+  Future<Response> getNotificationSnapshot() =>
+      _dio.get('/account/notifications/snapshot');
+  Future<Response> getPromotionRequest(String id) => _dio.get(
+    '/user/promotion/secure/get-promotion-request/${Uri.encodeComponent(id)}',
+  );
+  Future<Response> setNotificationRead(int id, bool value) =>
+      _dio.put('/account/notifications/$id/read', data: {'value': value});
+  Future<Response> setNotificationArchived(int id, bool value) =>
+      _dio.put('/account/notifications/$id/archive', data: {'value': value});
+  Future<Response> markAllNotificationsRead() =>
+      _dio.post('/account/notifications/read-all');
+  Future<Response> saveNotificationPreferences(
+    Map<String, dynamic> preferences,
+  ) => _dio.put('/account/notifications/preferences', data: preferences);
+  Future<Response<ResponseBody>> openNotificationStream(CancelToken cancel) =>
+      _dio.get<ResponseBody>(
+        '/account/notifications/stream',
+        cancelToken: cancel,
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: Duration.zero,
+          headers: {'Accept': 'text/event-stream'},
+        ),
+      );
 
   // Auth
   Future<Response> login(String userName, String password) => _dio.post(
@@ -127,8 +161,14 @@ class ApiService {
     ),
   );
 
-  Future<Response> updateInfluencerAccount(Map<String, dynamic> data) =>
-      _dio.post('/influencer/update-influencer-account', data: data);
+  Future<Response> updateInfluencerAccount(
+    String pid,
+    Map<String, dynamic> data,
+  ) => _dio.post(
+    '/influencer/update-influencer-account',
+    data: data,
+    options: Options(headers: {'pid': pid}),
+  );
 
   Future<Response> deleteInfluencerAccount(
     String accountPublicId,
@@ -154,6 +194,32 @@ class ApiService {
   );
 
   // Promotion Requests
+  Future<Response> createPromotionBrief(
+    String accountPublicId,
+    Map<String, dynamic> brief,
+    List<MultipartFile> files,
+  ) => _dio.post(
+    '/user/promotion/secure/brief',
+    data: FormData.fromMap({
+      'brief': MultipartFile.fromString(
+        jsonEncode(brief),
+        contentType: DioMediaType('application', 'json'),
+      ),
+      'files': files,
+    }, ListFormat.multi),
+    options: Options(
+      headers: {'accountPublicId': accountPublicId},
+      contentType: 'multipart/form-data',
+      sendTimeout: const Duration(minutes: 2),
+    ),
+  );
+
+  Future<Response<List<int>>> downloadPromotionAttachment(String id) =>
+      _dio.get<List<int>>(
+        '/promotion-files/$id',
+        options: Options(responseType: ResponseType.bytes),
+      );
+
   Future<Response> createPromotion(
     String userPublicId,
     String accountPublicId,

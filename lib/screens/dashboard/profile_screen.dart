@@ -187,6 +187,20 @@ class _ProfileBody extends ConsumerWidget {
         ],
 
         const SizedBox(height: 24),
+        const _SectionLabel('Notifications'),
+        const SizedBox(height: 10),
+        _SectionCard(
+          children: [
+            _ActionRow(
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
+              subtitle: 'Inbox, unread updates and alert preferences',
+              onTap: () => context.push('/notifications'),
+              last: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
         const _SectionLabel('Session'),
         const SizedBox(height: 10),
         _SectionCard(

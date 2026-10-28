@@ -1,307 +1,386 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../models/notification_models.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../widgets/app_toast.dart';
 
-/// Notifications list. Branded navy header (matching the detail screens),
-/// grouped Today / Earlier, compact borderless rows with unread accents.
-/// Currently shows demo data.
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
+  Future<void> _action(
+    BuildContext context,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          'Could not save this change. Please try again.',
+        );
+      }
+    }
+  }
 
-  static final _items = <_Notif>[
-    _Notif(
-      icon: Icons.verified_rounded,
-      tint: AppColors.primary,
-      title: 'Promotion approved',
-      body: 'Your request to “Addis Tech” was approved and is now running.',
-      time: '2h ago',
-      unread: true,
-      today: true,
-    ),
-    _Notif(
-      icon: Icons.campaign_rounded,
-      tint: AppColors.accent,
-      title: 'New promotion request',
-      body: 'Abebe Kebede sent you a promotion request for 3 days.',
-      time: '5h ago',
-      unread: true,
-      today: true,
-    ),
-    _Notif(
-      icon: Icons.account_circle_rounded,
-      tint: AppColors.primary,
-      title: 'Welcome to Tikaddis 🎉',
-      body: 'Your account is ready. Start by browsing creators.',
-      time: 'Yesterday',
-      unread: false,
-      today: false,
-    ),
-    _Notif(
-      icon: Icons.payments_rounded,
-      tint: Color(0xFF047857),
-      title: 'Promotion fulfilled',
-      body: 'Your campaign with “Mereja News” was marked fulfilled.',
-      time: '3 days ago',
-      unread: false,
-      today: false,
-    ),
-  ];
+  Future<void> _open(
+    BuildContext context,
+    WidgetRef ref,
+    InboxNotification item,
+  ) async {
+    final auth = ref.read(authProvider);
+    if (item.unread) {
+      try {
+        await ref.read(notificationInboxProvider.notifier).markRead(item, true);
+      } catch (_) {
+        if (context.mounted) {
+          AppToast.error(context, 'Could not mark this notification as read.');
+        }
+      }
+    }
+    if (!context.mounted) return;
+    final destination = notificationRoute(
+      item,
+      isAdmin: auth.isAdmin,
+      isInfluencer: auth.isInfluencer,
+    );
+    if (destination != null) context.push(destination);
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final today = _items.where((n) => n.today).toList();
-    final earlier = _items.where((n) => !n.today).toList();
-    final unreadCount = _items.where((n) => n.unread).length;
-
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(notificationInboxProvider);
+    final controller = ref.read(notificationInboxProvider.notifier);
     return Scaffold(
       backgroundColor: AppColors.neutral50,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          // Header: a top control row (back + mark all read) then the big
-          // left-aligned title on its own line.
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 6,
-                left: 8,
-                right: 16,
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          IconButton(
+            tooltip: 'Notification preferences',
+            icon: const Icon(Icons.tune),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => const _PreferencesSheet(),
+            ),
+          ),
+          if (state.unreadCount > 0)
+            IconButton(
+              tooltip: 'Mark all read',
+              icon: const Icon(Icons.done_all),
+              onPressed: state.busy
+                  ? null
+                  : () => _action(context, controller.readAll),
+            ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: controller.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back,
-                            color: AppColors.neutral900),
-                        onPressed: () => context.pop(),
-                      ),
-                      const Spacer(),
-                      if (unreadCount > 0)
-                        TextButton(
-                          onPressed: () {},
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            textStyle: const TextStyle(
-                                fontSize: 13.5, fontWeight: FontWeight.w600),
-                          ),
-                          child: const Text('Mark all read'),
-                        ),
-                    ],
+                  Text(
+                    '${state.unreadCount} unread',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(12, 2, 0, 10),
-                    child: Text(
-                      'Notifications',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: AppColors.neutral900,
+                  const SizedBox(height: 4),
+                  Text(
+                    state.connected
+                        ? 'Live updates connected'
+                        : 'Connecting to live updates · pull down to refresh',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final filter in const ['ALL', 'UNREAD', 'ARCHIVED'])
+                  ChoiceChip(
+                    label: Text(switch (filter) {
+                      'ALL' => 'All',
+                      'UNREAD' => 'Unread',
+                      _ => 'Archived',
+                    }),
+                    selected: state.filter == filter,
+                    onSelected: state.busy
+                        ? null
+                        : (_) => controller.changeFilter(filter),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (state.error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  children: [
+                    Text(
+                      state.error!,
+                      style: const TextStyle(color: AppColors.neutral600),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => controller.refresh(),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            if (state.loading)
+              const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (state.items.isEmpty && state.error == null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 64),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.notifications_none,
+                      size: 54,
+                      color: AppColors.neutral500,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      switch (state.filter) {
+                        'UNREAD' => 'You’re all caught up',
+                        'ARCHIVED' => 'No archived notifications',
+                        _ => 'No notifications yet',
+                      },
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Your real account and promotion updates appear here.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else
+              for (final item in state.items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Material(
+                    color: item.unread
+                        ? AppColors.primary.withValues(alpha: .06)
+                        : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: AppColors.neutral200),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: state.busy
+                          ? null
+                          : () => _open(context, ref, item),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 4, 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(switch (item.category) {
+                              'PROMOTIONS' => Icons.campaign_outlined,
+                              'CHANNELS' => Icons.storefront_outlined,
+                              _ => Icons.person_outline,
+                            }, color: AppColors.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.title,
+                                    style: TextStyle(
+                                      fontWeight: item.unread
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.body,
+                                    style: const TextStyle(
+                                      color: AppColors.neutral700,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _time(item.createdAt),
+                                    style: const TextStyle(
+                                      color: AppColors.neutral500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuButton<String>(
+                              enabled: !state.busy,
+                              tooltip: 'Manage notification',
+                              onSelected: (action) => _action(
+                                context,
+                                () => action == 'read'
+                                    ? controller.markRead(item, item.unread)
+                                    : controller.archive(item, !item.archived),
+                              ),
+                              itemBuilder: (_) => [
+                                PopupMenuItem(
+                                  value: 'read',
+                                  child: Text(
+                                    item.unread
+                                        ? 'Mark as read'
+                                        : 'Mark as unread',
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'archive',
+                                  child: Text(
+                                    item.archived
+                                        ? 'Restore to inbox'
+                                        : 'Archive',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ],
+                ),
+            if (state.hasMore)
+              OutlinedButton(
+                onPressed: state.loadingMore ? null : controller.loadMore,
+                child: Text(
+                  state.loadingMore ? 'Loading…' : 'Load older notifications',
+                ),
               ),
-            ),
-          ),
-
-          if (_items.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: _EmptyState(),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              sliver: SliverList.list(
-                children: [
-                  if (today.isNotEmpty) ...[
-                    const _SectionLabel('Today'),
-                    ...today.map((n) => _NotifRow(n: n)),
-                  ],
-                  if (earlier.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    const _SectionLabel('Earlier'),
-                    ...earlier.map((n) => _NotifRow(n: n)),
-                  ],
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: AppColors.neutral500,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
+          ],
         ),
       ),
     );
   }
+
+  String _time(DateTime at) {
+    final local = at.toLocal();
+    final ago = DateTime.now().difference(at);
+    if (ago.inSeconds < 60) return 'Just now';
+    if (ago.inMinutes < 60) return '${ago.inMinutes} min ago';
+    if (ago.inHours < 24) return '${ago.inHours} hr ago';
+    return '${Fmt.date(local)} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
 }
 
-/// Compact, borderless notification row. Unread rows get a faint tint + dot.
-class _NotifRow extends StatelessWidget {
-  const _NotifRow({required this.n});
-  final _Notif n;
+class _PreferencesSheet extends ConsumerWidget {
+  const _PreferencesSheet();
+  Future<void> _save(
+    BuildContext context,
+    WidgetRef ref,
+    NotificationSettings settings,
+  ) async {
+    try {
+      await ref.read(notificationInboxProvider.notifier).saveSettings(settings);
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.error(context, 'Could not save notification preferences.');
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: n.unread
-            ? AppColors.primary.withValues(alpha: 0.05)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: n.tint.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(n.icon, color: n.tint, size: 19),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  n.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.neutral900,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  n.body,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.neutral600,
-                    fontSize: 12.5,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(notificationInboxProvider);
+    final p = state.preferences;
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                n.time,
-                style: const TextStyle(
-                  color: AppColors.neutral500,
-                  fontSize: 11,
+              const Text(
+                'Notification preferences',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Choose the live alerts shown while you use the app. All updates remain in your inbox.',
+              ),
+              SwitchListTile(
+                title: const Text('Live in-app alerts'),
+                value: p.liveAlerts,
+                onChanged: state.busy
+                    ? null
+                    : (v) => _save(context, ref, p.copyWith(liveAlerts: v)),
+              ),
+              SwitchListTile(
+                title: const Text('Promotions'),
+                value: p.promotionAlerts,
+                onChanged: state.busy
+                    ? null
+                    : (v) =>
+                          _save(context, ref, p.copyWith(promotionAlerts: v)),
+              ),
+              SwitchListTile(
+                title: const Text('Channels'),
+                value: p.channelAlerts,
+                onChanged: state.busy
+                    ? null
+                    : (v) => _save(context, ref, p.copyWith(channelAlerts: v)),
+              ),
+              SwitchListTile(
+                title: const Text('Account updates'),
+                value: p.accountAlerts,
+                onChanged: state.busy
+                    ? null
+                    : (v) => _save(context, ref, p.copyWith(accountAlerts: v)),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'These controls manage in-app alerts. Phone push alerts while the app is closed are not enabled.',
+                style: TextStyle(color: AppColors.neutral500, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
                 ),
               ),
-              const SizedBox(height: 6),
-              if (n.unread)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                )
-              else
-                const SizedBox(height: 8),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: const BoxDecoration(
-              color: AppColors.neutral100,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.notifications_none_rounded,
-                color: AppColors.neutral500, size: 34),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No notifications yet',
-            style: TextStyle(
-              color: AppColors.neutral900,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            "We'll let you know when something happens.",
-            style: TextStyle(color: AppColors.neutral500, fontSize: 13.5),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Notif {
-  const _Notif({
-    required this.icon,
-    required this.tint,
-    required this.title,
-    required this.body,
-    required this.time,
-    required this.unread,
-    required this.today,
-  });
-
-  final IconData icon;
-  final Color tint;
-  final String title;
-  final String body;
-  final String time;
-  final bool unread;
-  final bool today;
 }

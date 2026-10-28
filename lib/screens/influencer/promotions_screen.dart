@@ -1,3 +1,5 @@
+import '../../widgets/promotion_brief_details.dart';
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,7 +88,7 @@ class _RequestCard extends ConsumerStatefulWidget {
 class _RequestCardState extends ConsumerState<_RequestCard> {
   bool _busy = false;
 
-  bool get _actionable => widget.request.status == PromotionStatus.requested ||
+  bool get _actionable =>
       widget.request.status == PromotionStatus.adminApproved;
 
   Future<void> _act(String option) async {
@@ -96,10 +98,14 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(option == 'APPROVE' ? 'Approve request?' : 'Reject request?'),
-        content: Text(option == 'APPROVE'
-            ? 'The business owner will be notified and the promotion can move forward.'
-            : 'This will reject the promotion request.'),
+        title: Text(
+          option == 'APPROVE' ? 'Approve request?' : 'Reject request?',
+        ),
+        content: Text(
+          option == 'APPROVE'
+              ? 'Accept this campaign brief so the promotion can move forward.'
+              : 'This will reject the promotion request.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -124,31 +130,26 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
       await ref.read(apiServiceProvider).approveRejectPromotion(id, option);
       ref.invalidate(influencerRequestsProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              option == 'APPROVE' ? 'Request approved.' : 'Request rejected.'),
-          backgroundColor: AppColors.primary,
-        ),
+      AppToast.success(
+        context,
+        option == 'APPROVE' ? 'Request approved.' : 'Request rejected.',
       );
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       final data = e.response?.data;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(data is String && data.isNotEmpty
-              ? data
-              : 'Could not update the request.'),
-          backgroundColor: const Color(0xFFB91C1C),
-        ),
+      AppToast.error(
+        context,
+        data is String && data.isNotEmpty
+            ? data
+            : 'Could not update the request.',
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong.')),
-      );
+      AppToast.error(context, 'Something went wrong.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -169,8 +170,11 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
         children: [
           Row(
             children: [
-              Icon(Fmt.platformIcon(account?.accountType),
-                  size: 18, color: AppColors.primary),
+              Icon(
+                Fmt.platformIcon(account?.accountType),
+                size: 18,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -187,6 +191,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
               StatusBadge(status: r.status),
             ],
           ),
+          PromotionBriefDetails(request: r),
           if ((r.promotionText ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
@@ -202,8 +207,11 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.event_outlined,
-                    size: 15, color: AppColors.neutral500),
+                const Icon(
+                  Icons.event_outlined,
+                  size: 15,
+                  color: AppColors.neutral500,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(

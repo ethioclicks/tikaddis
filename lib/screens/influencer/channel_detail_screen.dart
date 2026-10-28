@@ -1,3 +1,4 @@
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,8 +45,9 @@ class _Detail extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete channel?'),
         content: Text(
-            'This will remove "${account.title ?? 'this channel'}" from your '
-            'listings. This cannot be undone.'),
+          'This will remove "${account.title ?? 'this channel'}" from your '
+          'listings. This cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -53,7 +55,8 @@ class _Detail extends ConsumerWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626)),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
@@ -70,23 +73,16 @@ class _Detail extends ConsumerWidget {
           .deleteInfluencerAccount(account.accountPublicId!, pid);
       ref.invalidate(myAccountsProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Channel deleted.'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+      AppToast.success(context, 'Channel deleted.');
       context.go('/browse');
     } on DioException catch (e) {
       if (!context.mounted) return;
       final data = e.response?.data;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(data is String && data.isNotEmpty
-              ? data
-              : 'Could not delete the channel.'),
-          backgroundColor: const Color(0xFFB91C1C),
-        ),
+      AppToast.error(
+        context,
+        data is String && data.isNotEmpty
+            ? data
+            : 'Could not delete the channel.',
       );
     }
   }
@@ -115,81 +111,94 @@ class _Detail extends ConsumerWidget {
               opacity: 0.1,
               radius: 44,
               child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                  16, MediaQuery.of(context).padding.top + 8, 16, 28),
-              child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  MediaQuery.of(context).padding.top + 8,
+                  16,
+                  28,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () => context.pop(),
-                      icon: const Icon(Icons.arrow_back,
-                          color: Colors.white),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Edit',
+                          onPressed: () => context.push(
+                            '/influencer/accounts/edit',
+                            extra: account,
+                          ),
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: Colors.white,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete',
+                          onPressed: () => _delete(context, ref),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'Edit',
-                      onPressed: () => context.push(
-                        '/influencer/accounts/edit',
-                        extra: account,
-                      ),
-                      icon: const Icon(Icons.edit_outlined,
-                          color: Colors.white),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.20),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            Fmt.platformIcon(account.accountType),
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                account.title ?? 'Untitled',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                account.accountType?.label ?? '',
+                                style: const TextStyle(
+                                  color: Color(0xE6FFFFFF),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      tooltip: 'Delete',
-                      onPressed: () => _delete(context, ref),
-                      icon: const Icon(Icons.delete_outline,
-                          color: Colors.white),
-                    ),
+                    const SizedBox(height: 16),
+                    _ApprovalPill(approved: account.approved),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.20),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(Fmt.platformIcon(account.accountType),
-                          color: Colors.white, size: 30),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            account.title ?? 'Untitled',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            account.accountType?.label ?? '',
-                            style: const TextStyle(
-                              color: Color(0xE6FFFFFF),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _ApprovalPill(approved: account.approved),
-              ],
-              ),
               ),
             ),
           ),
@@ -267,8 +276,10 @@ class _Detail extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               if (account.priceOptions.isEmpty)
-                const Text('No pricing listed.',
-                    style: TextStyle(color: AppColors.neutral500))
+                const Text(
+                  'No pricing listed.',
+                  style: TextStyle(color: AppColors.neutral500),
+                )
               else
                 ...account.priceOptions.map((p) => _PriceRow(option: p)),
             ],
@@ -294,8 +305,11 @@ class _ApprovalPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(approved ? Icons.verified : Icons.schedule,
-              size: 15, color: Colors.white),
+          Icon(
+            approved ? Icons.verified : Icons.schedule,
+            size: 15,
+            color: Colors.white,
+          ),
           const SizedBox(width: 6),
           Text(
             approved ? 'Approved' : 'Pending approval',
@@ -363,9 +377,10 @@ class _StatTile extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.neutral500, fontSize: 12.5)),
+          Text(
+            label,
+            style: const TextStyle(color: AppColors.neutral500, fontSize: 12.5),
+          ),
         ],
       ),
     );
@@ -392,23 +407,33 @@ class _PriceRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(option.priceType?.label ?? 'Price',
-                    style: const TextStyle(
-                        color: AppColors.neutral900,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  option.priceType?.label ?? 'Price',
+                  style: const TextStyle(
+                    color: AppColors.neutral900,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 if ((option.remark ?? '').isNotEmpty)
-                  Text(option.remark!,
-                      style: const TextStyle(
-                          color: AppColors.neutral500, fontSize: 12.5)),
+                  Text(
+                    option.remark!,
+                    style: const TextStyle(
+                      color: AppColors.neutral500,
+                      fontSize: 12.5,
+                    ),
+                  ),
               ],
             ),
           ),
-          Text(Fmt.birr(option.cost),
-              style: const TextStyle(
-                  color: AppColors.accentHover,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            Fmt.birr(option.cost),
+            style: const TextStyle(
+              color: AppColors.accentHover,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

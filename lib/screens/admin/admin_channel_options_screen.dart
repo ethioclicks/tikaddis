@@ -1,3 +1,4 @@
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,9 +110,7 @@ class _AdminChannelOptionsScreenState
       await action();
       _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        AppToast.success(context, message);
       }
     } catch (error) {
       if (mounted) {
@@ -129,9 +128,7 @@ class _AdminChannelOptionsScreenState
                 'already exists. Update it instead.';
           }
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        AppToast.error(context, message);
       }
     } finally {
       if (mounted) setState(() => _busy = false);

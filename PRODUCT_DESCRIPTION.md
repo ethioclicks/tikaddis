@@ -104,6 +104,10 @@ information, private account details, and information shared for a promotion.
   backend is hosted on DigitalOcean.
 - The reviewed Android main manifest requests internet access. City and street
   are entered by the user; those fields do not establish GPS location collection.
+- Campaign requests can include uploaded JPG/PNG artwork and PDF briefs, plus
+  campaign objectives, target audience, deliverables, call to action and a proposed
+  budget. Files are stored by the backend. Businesses and admins can access them;
+  the channel owner gains access after admin approval. Soft deletion retains them.
 - Channel and promotional images can be represented by URLs. Confirm the actual
   image hosting providers and whether images load directly from third-party servers.
 - The reviewed Flutter dependencies do not include an advertising or analytics SDK.

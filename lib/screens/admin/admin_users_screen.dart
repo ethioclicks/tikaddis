@@ -1,3 +1,4 @@
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,12 +29,15 @@ class AdminUsersScreen extends ConsumerWidget {
                 padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Users',
-                      style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: AppColors.neutral900)),
+                  child: Text(
+                    'Users',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -44,8 +48,10 @@ class AdminUsersScreen extends ConsumerWidget {
               unselectedLabelColor: AppColors.neutral500,
               indicatorColor: AppColors.primary,
               indicatorSize: TabBarIndicatorSize.label,
-              labelStyle:
-                  TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+              labelStyle: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+              ),
               tabs: [
                 Tab(text: 'Pending'),
                 Tab(text: 'Influencers'),
@@ -94,8 +100,7 @@ class _RoleUserList extends ConsumerWidget {
       ),
       data: (list) {
         if (list.isEmpty) {
-          return EmptyView(
-              icon: Icons.people_outline, message: emptyMessage);
+          return EmptyView(icon: Icons.people_outline, message: emptyMessage);
         }
         return RefreshIndicator(
           color: AppColors.primary,
@@ -137,7 +142,9 @@ class _AllUsersList extends ConsumerWidget {
       data: (list) {
         if (list.isEmpty) {
           return const EmptyView(
-              icon: Icons.people_outline, message: 'No users found.');
+            icon: Icons.people_outline,
+            message: 'No users found.',
+          );
         }
         return RefreshIndicator(
           color: AppColors.primary,
@@ -181,20 +188,22 @@ class _UserCardState extends ConsumerState<_UserCard> {
       await ref.read(apiServiceProvider).adminApproveInfluencer(pid, option);
       widget.onChanged();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(option == 'APPROVE'
+      AppToast.success(
+        context,
+        option == 'APPROVE'
             ? 'Approved as influencer.'
-            : 'Application rejected.'),
-        backgroundColor: AppColors.primary,
-      ));
+            : 'Application rejected.',
+      );
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       final data = e.response?.data;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(data is String && data.isNotEmpty ? data : 'Action failed.'),
-        backgroundColor: const Color(0xFFB91C1C),
-      ));
+      AppToast.error(
+        context,
+        data is String && data.isNotEmpty ? data : 'Action failed.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -219,27 +228,37 @@ class _UserCardState extends ConsumerState<_UserCard> {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-                child: Text(initials,
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700)),
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.neutral900,
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.neutral900,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if ((u.userName ?? '').isNotEmpty)
-                      Text(u.userName!,
-                          style: const TextStyle(
-                              color: AppColors.neutral500, fontSize: 13)),
+                      Text(
+                        u.userName!,
+                        style: const TextStyle(
+                          color: AppColors.neutral500,
+                          fontSize: 13,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -251,25 +270,27 @@ class _UserCardState extends ConsumerState<_UserCard> {
             if (_busy)
               const Center(child: DotsLoading(color: AppColors.primary))
             else
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _act('DISAPPROVE'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB91C1C),
-                      side: const BorderSide(color: Color(0xFFFECACA)),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _act('DISAPPROVE'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFB91C1C),
+                        side: const BorderSide(color: Color(0xFFFECACA)),
+                      ),
+                      child: const Text('Reject'),
                     ),
-                    child: const Text('Reject'),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _act('APPROVE'),
-                    child: const Text('Make influencer'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _act('APPROVE'),
+                      child: const Text('Make influencer'),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
           ],
         ],
       ),
@@ -279,8 +300,8 @@ class _UserCardState extends ConsumerState<_UserCard> {
   String _initials(AdminUser u) {
     final f = (u.firstName ?? '').trim();
     final l = (u.lastName ?? '').trim();
-    final res =
-        ((f.isNotEmpty ? f[0] : '') + (l.isNotEmpty ? l[0] : '')).toUpperCase();
+    final res = ((f.isNotEmpty ? f[0] : '') + (l.isNotEmpty ? l[0] : ''))
+        .toUpperCase();
     return res.isEmpty ? 'U' : res;
   }
 }
@@ -313,11 +334,14 @@ class _RoleTag extends StatelessWidget {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label,
-          style:
-              TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

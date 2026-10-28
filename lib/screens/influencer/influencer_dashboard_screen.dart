@@ -42,31 +42,31 @@ class InfluencerDashboardScreen extends ConsumerWidget {
               ),
               Expanded(
                 child: accounts.when(
-              loading: () => const LoadingView(),
-              error: (e, _) => ErrorView(
-                message: 'Could not load your channels.',
-                onRetry: () => ref.invalidate(myAccountsProvider),
-              ),
-              data: (list) {
-                if (list.isEmpty) {
-                  return const EmptyView(
-                    icon: Icons.storefront_outlined,
-                    message:
-                        'No channels yet.\nTap the + to list your first one.',
-                  );
-                }
-                return RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: () async => ref.invalidate(myAccountsProvider),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                    itemCount: list.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _ChannelCard(account: list[i]),
+                  loading: () => const LoadingView(),
+                  error: (e, _) => ErrorView(
+                    message: 'Could not load your channels.',
+                    onRetry: () => ref.invalidate(myAccountsProvider),
                   ),
-                );
-              },
+                  data: (list) {
+                    if (list.isEmpty) {
+                      return const EmptyView(
+                        icon: Icons.storefront_outlined,
+                        message:
+                            'No channels yet.\nTap the + to list your first one.',
+                      );
+                    }
+                    return RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () async => ref.invalidate(myAccountsProvider),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                        itemCount: list.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (_, i) => _ChannelCard(account: list[i]),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -110,76 +110,83 @@ class _ChannelCard extends StatelessWidget {
             border: Border.all(color: AppColors.neutral200),
           ),
           child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Fmt.platformIcon(account.accountType),
-                    color: AppColors.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      account.title ?? 'Untitled',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.neutral900,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Fmt.platformColor(
+                        account.accountType,
+                      ).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    Text(
-                      [
-                        account.accountType?.label,
-                        account.category?.categoryName,
-                      ].where((e) => e != null).join(' · '),
-                      style: const TextStyle(
-                        color: AppColors.neutral500,
-                        fontSize: 13,
-                      ),
+                    child: Icon(
+                      Fmt.platformIcon(account.accountType),
+                      color: Fmt.platformColor(account.accountType),
                     ),
-                  ],
-                ),
-              ),
-              _ApprovalBadge(account: account),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.group_outlined,
-                  size: 15, color: AppColors.neutral500),
-              const SizedBox(width: 4),
-              Text(
-                '${Fmt.compact(account.audienceCount)} audience',
-                style: const TextStyle(
-                  color: AppColors.neutral600,
-                  fontSize: 12.5,
-                ),
-              ),
-              const Spacer(),
-              if (account.lowestCost != null)
-                Text(
-                  'from ${Fmt.birr(account.lowestCost!)}',
-                  style: const TextStyle(
-                    color: AppColors.accentHover,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
                   ),
-                ),
-            ],
-          ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          account.title ?? 'Untitled',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.neutral900,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          [
+                            account.accountType?.label,
+                            account.category?.categoryName,
+                          ].where((e) => e != null).join(' · '),
+                          style: const TextStyle(
+                            color: AppColors.neutral500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _ApprovalBadge(account: account),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.group_outlined,
+                    size: 15,
+                    color: AppColors.neutral500,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${Fmt.compact(account.audienceCount)} audience',
+                    style: const TextStyle(
+                      color: AppColors.neutral600,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (account.lowestCost != null)
+                    Text(
+                      'from ${Fmt.birr(account.lowestCost!)}',
+                      style: const TextStyle(
+                        color: AppColors.accentHover,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),

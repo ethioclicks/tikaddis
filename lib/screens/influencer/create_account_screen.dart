@@ -1,9 +1,11 @@
+import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/channel_address.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
@@ -130,7 +132,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     final body = {
       'title': _title.text.trim(),
       'description': _description.text.trim(),
-      'accountURL': _url.text.trim(),
+      'accountURL': channelAddress(_url.text, _accountType),
       'accountType': AccountType.values.contains(_accountType)
           ? _accountType!.wire
           : null,
@@ -146,7 +148,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     try {
       final api = ref.read(apiServiceProvider);
       if (_isEdit) {
-        await api.updateInfluencerAccount({
+        await api.updateInfluencerAccount(pid, {
           'id': widget.editing!.id,
           'accountPublicId': widget.editing!.accountPublicId,
           ...body,
@@ -158,13 +160,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         ref.invalidate(myAccountsProvider);
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isEdit ? 'Channel updated.' : 'Account submitted for approval.',
-          ),
-          backgroundColor: AppColors.primary,
-        ),
+      AppToast.success(
+        context,
+        _isEdit ? 'Channel updated.' : 'Account submitted for approval.',
       );
       if (_isEdit) {
         context.pop(); // back to the channel detail
@@ -353,21 +351,25 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                _label('Channel URL'),
+                _label('Channel link or username'),
                 TextFormField(
                   controller: _url,
                   keyboardType: TextInputType.url,
                   maxLength: 255,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.link),
-                    hintText: 'https://t.me/yourchannel',
+                    hintText: 'https://... or @yourchannel',
+                    helperText:
+                        'A link, @handle or username for your platform.',
+                    helperMaxLines: 2,
                     counterText: '',
                   ),
                   validator: (v) {
                     final s = (v ?? '').trim();
-                    if (s.isEmpty) return 'Enter the channel URL';
-                    final ok = Uri.tryParse(s)?.hasAbsolutePath ?? false;
-                    if (!ok) return 'Enter a valid URL';
+                    if (s.isEmpty) return 'Enter a channel link or username';
+                    if (channelAddress(s, _accountType) == null) {
+                      return 'Enter a valid link or platform username';
+                    }
                     if (s.length > 255) return 'URL is too long';
                     return null;
                   },
@@ -574,8 +576,10 @@ class _InlineLoader extends StatelessWidget {
 }
 
 class _InlineError extends StatelessWidget {
-  const _InlineError({required this.onRetry,
-    this.message = "Couldn't load categories."});
+  const _InlineError({
+    required this.onRetry,
+    this.message = "Couldn't load categories.",
+  });
   final VoidCallback onRetry;
   final String message;
   @override

@@ -229,6 +229,45 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> refreshAccountRoles() async {
+    final token = state.token;
+    final pid = state.pid;
+    if (token == null || pid == null) return;
+    try {
+      final response = await _api.getProfile(pid);
+      if (state.token != token || state.pid != pid) return;
+      final raw = response.data is Map ? response.data['roles'] : null;
+      if (raw is! List || raw.isEmpty) return;
+      final roles = raw
+          .map((r) => r is Map ? r['name'].toString() : r.toString())
+          .toList();
+      if (roles.any(
+        (r) => !const {
+          'USER',
+          'CANDIDATE',
+          'INFLUENCER',
+          'ADMIN',
+          'SUPER_ADMIN',
+          'AGENT',
+        }.contains(r),
+      )) {
+        return;
+      }
+      final next = state.copyWith(roles: roles);
+      final prefs = await SharedPreferences.getInstance();
+      if (state.token != token ||
+          state.pid != pid ||
+          prefs.getString(_kToken) != token) {
+        return;
+      }
+      // Updating roles must never rewrite an old token during a concurrent logout.
+      await prefs.setStringList(_kRoles, roles);
+      if (state.token == token && state.pid == pid) state = next;
+    } catch (_) {
+      /* A later profile refresh can retry; keep the active session. */
+    }
+  }
+
   Future<void> logout({bool sessionExpired = false}) async {
     final prefs = await SharedPreferences.getInstance();
     // Clear the session but keep the onboarding flag so the walkthrough

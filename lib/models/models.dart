@@ -309,6 +309,26 @@ class InfluencerAccount {
       );
 }
 
+class PromotionAttachment {
+  final String id;
+  final String fileName;
+  final String contentType;
+  final int byteSize;
+  PromotionAttachment({
+    required this.id,
+    required this.fileName,
+    required this.contentType,
+    required this.byteSize,
+  });
+  factory PromotionAttachment.fromJson(Map<String, dynamic> j) =>
+      PromotionAttachment(
+        id: j['id'] as String,
+        fileName: j['fileName'] as String,
+        contentType: j['contentType'] as String,
+        byteSize: (j['byteSize'] as num).toInt(),
+      );
+}
+
 class PromotionRequest {
   final int? id;
   final String? promotionRequestPublicId;
@@ -318,6 +338,9 @@ class PromotionRequest {
   final String? promoImageURL;
   final String? feedback;
   final PromotionStatus? status;
+  final Map<String, String> brief;
+  final double? proposedBudget;
+  final List<PromotionAttachment> attachments;
 
   PromotionRequest({
     this.id,
@@ -328,6 +351,9 @@ class PromotionRequest {
     this.promoImageURL,
     this.feedback,
     this.status,
+    this.brief = const {},
+    this.proposedBudget,
+    this.attachments = const [],
   });
 
   factory PromotionRequest.fromJson(Map<String, dynamic> j) => PromotionRequest(
@@ -346,6 +372,22 @@ class PromotionRequest {
     promoImageURL: j['promoImageURL'] as String?,
     feedback: j['feedback'] as String?,
     status: PromotionStatus.fromWire(j['promotionRequestStatus'] as String?),
+    brief: {
+      for (final key in [
+        'campaignTitle',
+        'brandName',
+        'objective',
+        'targetAudience',
+        'deliverables',
+        'callToAction',
+      ])
+        if (j[key] is String && (j[key] as String).trim().isNotEmpty)
+          key: j[key] as String,
+    },
+    proposedBudget: (j['proposedBudget'] as num?)?.toDouble(),
+    attachments: ((j['attachments'] as List?) ?? const [])
+        .map((a) => PromotionAttachment.fromJson(a as Map<String, dynamic>))
+        .toList(),
   );
 }
 
