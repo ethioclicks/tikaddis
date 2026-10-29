@@ -34,7 +34,8 @@ class _NotificationCoordinatorState
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _active = true;
-      if (ref.read(authProvider).isLoggedIn) {
+      if (ref.read(authProvider).isLoggedIn &&
+          !ref.read(authProvider).sessionExpired) {
         ref.read(notificationInboxProvider.notifier).resume();
       }
     } else if (state == AppLifecycleState.paused ||
@@ -47,7 +48,9 @@ class _NotificationCoordinatorState
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider.select((a) => (a.token, a.pid)));
+    final auth = ref.watch(
+      authProvider.select((a) => (a.token, a.pid, a.sessionExpired)),
+    );
     final controller = ref.watch(notificationInboxProvider.notifier);
     ref.listen(notificationInboxProvider.select((s) => s.alert), (
       previous,
@@ -75,6 +78,10 @@ class _NotificationCoordinatorState
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (auth.$3) {
+        controller.pause();
+        return;
+      }
       if (auth.$1 != null &&
           auth.$2 != null &&
           _active &&

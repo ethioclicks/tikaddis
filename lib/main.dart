@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'widgets/notification_coordinator.dart';
+import 'widgets/session_verification_banner.dart';
 
 void main() {
   runApp(const ProviderScope(child: EthioPromoApp()));
@@ -21,8 +22,11 @@ class EthioPromoApp extends ConsumerWidget {
       theme: AppTheme.light,
       scrollBehavior: _AppScrollBehavior(),
       routerConfig: router,
-      builder: (context, child) =>
-          NotificationCoordinator(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => NotificationCoordinator(
+        child: SessionVerificationBanner(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
     );
   }
 }

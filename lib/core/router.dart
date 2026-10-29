@@ -29,13 +29,14 @@ import '../screens/admin/admin_promotions_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
 import '../models/models.dart';
 
-final _rootKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+final _rootKey = rootNavigatorKey;
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRefreshNotifier(ref);
 
   return GoRouter(
-    navigatorKey: _rootKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {

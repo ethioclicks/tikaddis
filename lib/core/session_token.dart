@@ -1,5 +1,20 @@
 import 'dart:convert';
 
+String? sessionUsername(String token) {
+  try {
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    final payload = jsonDecode(
+      utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+    );
+    return payload is Map && payload['sub'] is String
+        ? payload['sub'] as String
+        : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Reads expiry only to prompt reauthentication; the server validates the token.
 bool isSessionTokenExpired(String token, {DateTime? now}) {
   try {

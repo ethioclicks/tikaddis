@@ -2,38 +2,53 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'session_token.dart';
+import 'session_credentials.dart';
 
 class ApiService {
   static const String baseUrl =
       'https://tikaddis-app-w6zbh.ondigitalocean.app'; // hosted backend
   late final Dio _dio;
   final Future<void> Function()? onSessionExpired;
-  final Map<String, Future<void>> _sessionChecks = {};
+  final void Function(Map<String, dynamic>)? onSessionRenewed;
+  final SessionCredentials credentials;
+  Future<bool>? _renewing;
+  Future<void> _storage = Future.value();
+  int _sessionVersion = 0;
 
-  ApiService({this.onSessionExpired}) {
+  ApiService({
+    this.onSessionExpired,
+    this.onSessionRenewed,
+    this.credentials = const SessionCredentials(),
+  }) {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
         headers: {'Content-Type': 'application/json'},
+        connectTimeout: const Duration(seconds: 15),
       ),
     );
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('token');
+          var token = prefs.getString('token');
           if (!options.path.startsWith('/public/') &&
               token != null &&
-              isSessionTokenExpired(token)) {
-            await onSessionExpired?.call();
-            handler.reject(
-              DioException(
-                requestOptions: options,
-                type: DioExceptionType.cancel,
-                error: 'Your session expired. Please sign in again.',
-              ),
-            );
-            return;
+              isSessionTokenExpired(token) &&
+              options.extra['sessionInternal'] != true) {
+            final renewed = await renewSession();
+            token = prefs.getString('token');
+            if (!renewed || token == null || isSessionTokenExpired(token)) {
+              handler.reject(
+                DioException(
+                  requestOptions: options,
+                  type: DioExceptionType.cancel,
+                  error:
+                      'Could not renew your session. Reconnect or verify your account.',
+                ),
+              );
+              return;
+            }
           }
           if (token != null &&
               token.isNotEmpty &&
@@ -43,16 +58,17 @@ class ApiService {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          // A 403 can also mean a valid account lacks permission. Only a 401
-          // or a token with a past expiry should clear the session.
+          // Failed requests never clear login state or redirect the user.
           final sent = error.requestOptions.headers['Authorization'];
           if (error.response?.statusCode == 401 &&
-              error.requestOptions.extra['sessionCheck'] != true &&
+              error.requestOptions.extra['sessionInternal'] != true &&
               sent is String &&
               sent.startsWith('Bearer ')) {
             final prefs = await SharedPreferences.getInstance();
             if (sent == 'Bearer ${prefs.getString('token')}') {
-              await _confirmSessionExpired(sent);
+              // Renew credentials for the next attempt. Do not automatically
+              // replay a mutation or an upload after an ambiguous failure.
+              await renewSession();
             }
           }
           handler.next(error);
@@ -63,37 +79,131 @@ class ApiService {
 
   Dio get dio => _dio;
 
-  Future<void> _confirmSessionExpired(String authorization) async {
-    final pending = _sessionChecks[authorization];
-    if (pending != null) return pending;
-    final check = _checkSession(authorization);
-    _sessionChecks[authorization] = check;
-    try {
-      await check;
-    } finally {
-      _sessionChecks.remove(authorization);
-    }
+  Future<void> _serialize(Future<void> Function() action) {
+    final next = _storage.then((_) => action());
+    _storage = next.catchError((Object _) {});
+    return next;
   }
 
-  Future<void> _checkSession(String authorization) async {
-    // A resource failure must not clear a valid login. Verify against an
-    // owner-scoped authenticated endpoint; never retry the original mutation.
+  Future<void> storeSession(String token, {String? refreshToken}) {
+    final version = ++_sessionVersion;
+    return _serialize(() async {
+      if (version != _sessionVersion) return;
+      // A new login must never inherit another account's renewal credential.
+      if (refreshToken == null) {
+        await credentials.clear();
+      } else {
+        await credentials.write(refreshToken);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      if (version == _sessionVersion) await prefs.setString('token', token);
+    });
+  }
+
+  Future<void> clearSession() {
+    ++_sessionVersion; // Invalidate in-flight renewal before any await.
+    return _serialize(() async {
+      String? secret;
+      try {
+        secret = await credentials.read();
+      } catch (_) {}
+      try {
+        await credentials.clear();
+      } catch (_) {}
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in [
+        'token',
+        'pid',
+        'firstName',
+        'lastName',
+        'email',
+        'roles',
+      ]) {
+        await prefs.remove(key);
+      }
+      if (secret != null) {
+        // Local sign-out succeeds offline as well; never retain credentials.
+        try {
+          await _dio.post(
+            '/public/session/logout',
+            data: {'refreshToken': secret},
+            options: Options(
+              sendTimeout: const Duration(seconds: 5),
+              receiveTimeout: const Duration(seconds: 5),
+            ),
+          );
+        } catch (_) {}
+      }
+    });
+  }
+
+  Future<bool> renewSession() {
+    if (_renewing != null) return _renewing!;
+    final pending = _renewSession();
+    _renewing = pending;
+    return pending.whenComplete(() {
+      if (identical(_renewing, pending)) _renewing = null;
+    });
+  }
+
+  Future<bool> _renewSession() async {
+    final version = _sessionVersion;
+    final prefs = await SharedPreferences.getInstance();
+    final previous = prefs.getString('token');
+    if (previous == null || previous.isEmpty) return false;
     try {
-      await _dio.get(
-        '/account/notifications/snapshot',
+      final secret = await credentials.read();
+      if (secret == null && isSessionTokenExpired(previous)) {
+        if (version == _sessionVersion) await onSessionExpired?.call();
+        return false;
+      }
+      // Upgrade a still-valid legacy login without asking for its password.
+      final response = await _dio.post(
+        secret == null ? '/account/session' : '/public/session/refresh',
+        data: secret == null ? null : {'refreshToken': secret},
         options: Options(
-          extra: {'sessionCheck': true},
+          extra: {'sessionInternal': true},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
       );
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['token'] is! String || data['refreshToken'] is! String) {
+        return false;
+      }
+      var saved = false;
+      await _serialize(() async {
+        if (version != _sessionVersion ||
+            prefs.getString('token') != previous) {
+          return;
+        }
+        final owner = prefs.getString('pid');
+        if (owner != null && owner != data['pid']) return;
+        await credentials.write(data['refreshToken'] as String);
+        if (version != _sessionVersion) return;
+        if (data['roles'] is List) {
+          await prefs.setStringList(
+            'roles',
+            (data['roles'] as List).map((r) => r.toString()).toList(),
+          );
+        }
+        if (version != _sessionVersion) return;
+        await prefs.setString('token', data['token'] as String);
+        if (version != _sessionVersion) return;
+        saved = true;
+        onSessionRenewed?.call(data);
+      });
+      return saved;
     } on DioException catch (error) {
-      if (error.response?.statusCode != 401) return;
-      final prefs = await SharedPreferences.getInstance();
-      if (authorization == 'Bearer ${prefs.getString('token')}' &&
-          error.requestOptions.headers['Authorization'] == authorization) {
+      if (error.response?.statusCode == 401 &&
+          version == _sessionVersion &&
+          prefs.getString('token') == previous) {
         await onSessionExpired?.call();
       }
+      return false;
+    } catch (_) {
+      // Offline/key-store errors are retryable; preserve all session state.
+      return false;
     }
   }
 

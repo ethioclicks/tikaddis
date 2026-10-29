@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tikaddis/core/api_service.dart';
 import 'package:tikaddis/core/browse_error.dart';
@@ -51,6 +52,7 @@ class _Adapter implements HttpClientAdapter {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
   test('JWT expiry is checked at its boundary', () {
     final now = DateTime.utc(2026, 10, 24, 12);
@@ -65,7 +67,7 @@ void main() {
     expect(isSessionTokenExpired('unknown', now: now), isFalse);
   });
 
-  test('Restart clears an expired login while preserving onboarding', () async {
+  test('Restart preserves an expired login and onboarding', () async {
     SharedPreferences.setMockInitialValues({
       'token': _token(DateTime.now().subtract(const Duration(minutes: 1))),
       'pid': 'owner',
@@ -75,12 +77,11 @@ void main() {
     final auth = AuthNotifier(ApiService());
     addTearDown(auth.dispose);
     final state = await auth.stream.firstWhere((s) => s.initialized);
-    expect(state.isLoggedIn, isFalse);
-    expect(state.sessionExpired, isTrue);
+    expect(state.isLoggedIn, isTrue);
     expect(state.seenOnboarding, isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.containsKey('token'), isFalse);
-    expect(prefs.containsKey('roles'), isFalse);
+    expect(prefs.containsKey('token'), isTrue);
+    expect(prefs.containsKey('roles'), isTrue);
   });
 
   test('Expired sessions prompt login before making a request', () async {
@@ -101,10 +102,10 @@ void main() {
   });
 
   test(
-    'The API provider clears auth state when an open session expires',
+    'The API provider requests verification without clearing an expired session',
     () async {
       SharedPreferences.setMockInitialValues({
-        'token': _token(DateTime.now().add(const Duration(hours: 1))),
+        'token': _token(DateTime.now().subtract(const Duration(minutes: 1))),
         'pid': 'owner',
         'roles': ['USER'],
         'hasSeenOnboarding': true,
@@ -128,7 +129,7 @@ void main() {
         api.getApprovedAccounts(),
         throwsA(isA<DioException>()),
       );
-      expect(container.read(authProvider).isLoggedIn, isFalse);
+      expect(container.read(authProvider).isLoggedIn, isTrue);
       expect(container.read(authProvider).sessionExpired, isTrue);
       expect(adapter.calls, 0);
     },
@@ -147,7 +148,7 @@ void main() {
   });
 
   test(
-    'A permission denial preserves a valid login; a 401 expires it',
+    'Permission denial preserves login; failed renewal requests verification',
     () async {
       SharedPreferences.setMockInitialValues({
         'token': _token(DateTime.now().add(const Duration(hours: 1))),

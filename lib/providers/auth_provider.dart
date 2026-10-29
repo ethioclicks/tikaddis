@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,6 +53,7 @@ class AuthState {
     bool? isLoading,
     bool? initialized,
     bool? seenOnboarding,
+    bool? sessionExpired,
   }) {
     return AuthState(
       token: token ?? this.token,
@@ -63,7 +65,7 @@ class AuthState {
       isLoading: isLoading ?? this.isLoading,
       initialized: initialized ?? this.initialized,
       seenOnboarding: seenOnboarding ?? this.seenOnboarding,
-      sessionExpired: sessionExpired,
+      sessionExpired: sessionExpired ?? this.sessionExpired,
     );
   }
 }
@@ -82,6 +84,7 @@ class AuthException implements Exception {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService _api;
+  int _authGeneration = 0;
 
   AuthNotifier(this._api) : super(const AuthState()) {
     _loadFromStorage();
@@ -102,11 +105,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final pid = prefs.getString(_kPid);
     final seenOnboarding = prefs.getBool(_kOnboarding) ?? false;
 
-    if (token != null && isSessionTokenExpired(token)) {
-      await logout(sessionExpired: true);
-      return;
-    }
-
     if (token != null && token.isNotEmpty && pid != null && pid.isNotEmpty) {
       state = AuthState(
         token: token,
@@ -118,6 +116,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         initialized: true,
         seenOnboarding: seenOnboarding,
       );
+      unawaited(_api.renewSession());
     } else {
       state = AuthState(initialized: true, seenOnboarding: seenOnboarding);
     }
@@ -132,7 +131,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _persist(AuthState s) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kToken, s.token ?? '');
     await prefs.setString(_kPid, s.pid ?? '');
     await prefs.setString(_kFirst, s.firstName ?? '');
     await prefs.setString(_kLast, s.lastName ?? '');
@@ -151,15 +149,59 @@ class AuthNotifier extends StateNotifier<AuthState> {
         current.toSet().containsAll(serverRoles);
     if (same || serverRoles.isEmpty) return;
     final next = state.copyWith(roles: serverRoles);
-    await _persist(next);
-    state = next;
+    final prefs = await SharedPreferences.getInstance();
+    if (state.token != next.token || prefs.getString(_kToken) != next.token) {
+      return;
+    }
+    await prefs.setStringList(_kRoles, serverRoles);
+    if (state.token == next.token) state = next;
+  }
+
+  void requireVerification() {
+    if (mounted && state.isLoggedIn) {
+      state = state.copyWith(sessionExpired: true);
+    }
+  }
+
+  void acceptRenewedSession(Map<String, dynamic> data) {
+    if (!mounted || !state.isLoggedIn || data['pid'] != state.pid) return;
+    state = state.copyWith(
+      token: data['token'] as String,
+      roles: (data['roles'] as List?)?.map((r) => r.toString()).toList(),
+      sessionExpired: false,
+    );
+  }
+
+  Future<void> verifyAccount(String password) async {
+    final old = state;
+    if (old.token == null) return;
+    // Subject is only a login hint; the backend verifies the password and owner.
+    final username = sessionUsername(old.token!);
+    if (username == null) {
+      throw AuthException('Sign out and sign in to verify this account.');
+    }
+    try {
+      final response = await _api.login(username, password);
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['pid'] != old.pid || state.token != old.token) return;
+      await _api.storeSession(
+        data['token'] as String,
+        refreshToken: data['refreshToken'] as String?,
+      );
+      if (state.token == old.token) acceptRenewedSession(data);
+    } on DioException catch (error) {
+      throw AuthException(_loginErrorMessage(error));
+    }
   }
 
   Future<void> login(String userName, String password) async {
+    final generation = ++_authGeneration;
+    final previous = state;
     state = state.copyWith(isLoading: true);
     final seen = state.seenOnboarding;
     try {
       final res = await _api.login(userName.trim(), password);
+      if (generation != _authGeneration) return;
       final data = res.data as Map<String, dynamic>;
       final next = AuthState(
         token: data['token'] as String?,
@@ -173,13 +215,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         initialized: true,
         seenOnboarding: seen,
       );
+      await _api.storeSession(
+        next.token!,
+        refreshToken: data['refreshToken'] as String?,
+      );
+      if (generation != _authGeneration) return;
       await _persist(next);
-      state = next;
+      if (generation == _authGeneration) state = next;
     } on DioException catch (e) {
-      state = AuthState(initialized: true, seenOnboarding: seen);
+      if (generation != _authGeneration) return;
+      state = previous.copyWith(isLoading: false, initialized: true);
       throw AuthException(_loginErrorMessage(e));
     } catch (_) {
-      state = AuthState(initialized: true, seenOnboarding: seen);
+      if (generation != _authGeneration) return;
+      state = previous.copyWith(isLoading: false, initialized: true);
       throw AuthException('Something went wrong. Please try again.');
     }
   }
@@ -269,21 +318,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout({bool sessionExpired = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    // Clear the session but keep the onboarding flag so the walkthrough
-    // does not reappear after logging out.
-    final seen = prefs.getBool(_kOnboarding) ?? state.seenOnboarding;
-    await prefs.remove(_kToken);
-    await prefs.remove(_kPid);
-    await prefs.remove(_kFirst);
-    await prefs.remove(_kLast);
-    await prefs.remove(_kEmail);
-    await prefs.remove(_kRoles);
-    state = AuthState(
-      initialized: true,
-      seenOnboarding: seen,
-      sessionExpired: sessionExpired,
-    );
+    ++_authGeneration;
+    final clearing = _api.clearSession();
+    // Intentional sign-out changes UI immediately, even when the network is down.
+    final seenBefore = state.seenOnboarding;
+    state = AuthState(initialized: true, seenOnboarding: seenBefore);
+    await clearing;
+    // Do not overwrite a newer login after waiting for network revocation.
   }
 
   /// Step 1 of password reset: verify the phone exists and trigger an OTP
@@ -349,6 +390,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   ///   404 -> "You can't apply for influncer position"
   /// Returns the server's message on success.
   Future<String> becomeInfluencer() async {
+    final generation = _authGeneration;
     final pid = state.pid;
     if (pid == null) {
       throw AuthException('Your session expired. Please sign in again.');
@@ -356,11 +398,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       final res = await _api.becomeInfluencer(pid);
+      if (generation != _authGeneration || state.pid != pid) {
+        return 'Request submitted.';
+      }
       // Reflect the new pending state locally so the UI stops offering "Apply
       // now" and shows the pending state instead. Backend moved USER -> CANDIDATE.
       final next = state.copyWith(isLoading: false, roles: const ['CANDIDATE']);
       await _persist(next);
-      state = next;
+      if (generation == _authGeneration && state.pid == pid) state = next;
       return res.data?.toString() ?? 'Request submitted.';
     } on DioException catch (e) {
       state = state.copyWith(isLoading: false);
@@ -414,8 +459,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final Provider<ApiService> apiServiceProvider = Provider<ApiService>(
   (ref) => ApiService(
-    onSessionExpired: () =>
-        ref.read(authProvider.notifier).logout(sessionExpired: true),
+    onSessionExpired: () => Future.sync(
+      () => ref.read(authProvider.notifier).requireVerification(),
+    ),
+    onSessionRenewed: (data) =>
+        ref.read(authProvider.notifier).acceptRenewedSession(data),
   ),
 );
 final StateNotifierProvider<AuthNotifier, AuthState> authProvider =
