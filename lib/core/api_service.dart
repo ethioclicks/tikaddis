@@ -8,6 +8,7 @@ class ApiService {
       'https://tikaddis-app-w6zbh.ondigitalocean.app'; // hosted backend
   late final Dio _dio;
   final Future<void> Function()? onSessionExpired;
+  final Map<String, Future<void>> _sessionChecks = {};
 
   ApiService({this.onSessionExpired}) {
     _dio = Dio(
@@ -46,11 +47,12 @@ class ApiService {
           // or a token with a past expiry should clear the session.
           final sent = error.requestOptions.headers['Authorization'];
           if (error.response?.statusCode == 401 &&
+              error.requestOptions.extra['sessionCheck'] != true &&
               sent is String &&
               sent.startsWith('Bearer ')) {
             final prefs = await SharedPreferences.getInstance();
             if (sent == 'Bearer ${prefs.getString('token')}') {
-              await onSessionExpired?.call();
+              await _confirmSessionExpired(sent);
             }
           }
           handler.next(error);
@@ -60,6 +62,40 @@ class ApiService {
   }
 
   Dio get dio => _dio;
+
+  Future<void> _confirmSessionExpired(String authorization) async {
+    final pending = _sessionChecks[authorization];
+    if (pending != null) return pending;
+    final check = _checkSession(authorization);
+    _sessionChecks[authorization] = check;
+    try {
+      await check;
+    } finally {
+      _sessionChecks.remove(authorization);
+    }
+  }
+
+  Future<void> _checkSession(String authorization) async {
+    // A resource failure must not clear a valid login. Verify against an
+    // owner-scoped authenticated endpoint; never retry the original mutation.
+    try {
+      await _dio.get(
+        '/account/notifications/snapshot',
+        options: Options(
+          extra: {'sessionCheck': true},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+    } on DioException catch (error) {
+      if (error.response?.statusCode != 401) return;
+      final prefs = await SharedPreferences.getInstance();
+      if (authorization == 'Bearer ${prefs.getString('token')}' &&
+          error.requestOptions.headers['Authorization'] == authorization) {
+        await onSessionExpired?.call();
+      }
+    }
+  }
 
   Future<Response> getNotifications({
     String filter = 'ALL',
