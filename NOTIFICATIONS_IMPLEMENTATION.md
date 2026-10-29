@@ -2,6 +2,10 @@
 
 Implemented for the existing Tikaddis promotion/channel/account workflows.
 Backend commit: `508fe51`. Mobile implementation commit: `155dc98`.
+The event-driven scaling upgrade is described in
+[NOTIFICATION_SCALING_RESULTS.md](NOTIFICATION_SCALING_RESULTS.md), including
+broker setup, the transitional mode and measured load-test results. The commit
+references above identify the original inbox implementation.
 Validated with 38 backend tests, 31 mobile tests, clean Dart analysis and a
 successful Android debug APK build.
 Background phone push is not configured: the project has no Firebase setup yet.
@@ -83,21 +87,24 @@ The SSE endpoint sends only an owner-scoped snapshot, not arbitrary notification
 payloads or tokens. The app reloads the durable REST inbox on a signal. Standard
 authorization headers are used; credentials are not placed in the stream URL.
 
-The server checks the shared database approximately every two seconds for an
-active connection. It sends a resync frame at least every 15 seconds while the
-connection is healthy. Database state supports multiple app instances and recovery
-after deployments; it does not rely on an in-memory-only event bus.
+The scaling upgrade removes connection-specific database polling. It stores a
+transactional outbox and distributes committed invalidations through Redis/Valkey
+when configured. Heartbeats perform no database reads or inbox fetches. Broker
+subscription recovery and client reconnect trigger resynchronization from the
+durable inbox. Broker-free transitional mode uses a 30-second resync signal until
+shared infrastructure is enabled; this mode is reported explicitly.
 
-Streams have a two-minute lifetime, per-user and per-instance connection limits,
-cleanup hooks, no-store headers and proxy-buffering suppression. The server checks
-token expiry and the recipient's active-account flags while streaming. The client
-reconnects with bounded backoff and uses a foreground-only 30-second refresh as
-recovery if a proxy buffers or drops streaming traffic.
+Streams have a two-minute lifetime, unchanged per-user/per-instance limits,
+bounded writers, cleanup hooks, no-store headers and proxy-buffering suppression.
+The server checks token expiry in memory and sends revocation events for account
+lock/disable/deletion. Every inbox API request remains independently authenticated.
+The app reconnects with bounded backoff and uses its foreground 30-second timer
+only when streaming is unhealthy or a refresh has failed.
 
-This implementation is suitable for the current deployment scale. Higher numbers
-of simultaneous live connections should move shared invalidation delivery to a
-broker; the durable inbox and owner APIs can remain the same. Live propagation
-is best effort, with persistence and resync providing recovery.
+The shared-broker implementation passed a local two-instance, 400-connection
+HTTP load/recovery test without increasing connection limits. Local measurements
+do not establish production capacity. Live propagation is best effort, with the
+durable inbox, outbox retries and resync providing recovery.
 
 ## Firebase follow-up
 

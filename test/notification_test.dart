@@ -36,6 +36,7 @@ class _NotificationsApi extends ApiService {
   NotificationSettings settings = const NotificationSettings();
   final streams = <StreamController<Uint8List>>[];
   int revision = 0;
+  int listCalls = 0;
   bool fail = false;
   bool failMutation = false;
   Response response(dynamic data) => Response(
@@ -48,6 +49,7 @@ class _NotificationsApi extends ApiService {
     int page = 0,
     int size = 20,
   }) async {
+    listCalls++;
     if (fail) throw StateError('Offline');
     final matching =
         rows
@@ -248,12 +250,14 @@ void main() {
       api.revision++;
       api.signal();
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
       await tester.pump();
       expect(controller.state.unreadCount, 2);
       expect(controller.state.alert?.item.id, 2);
       final sequence = controller.state.alert!.sequence;
       api.signal();
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
       await tester.pump();
       expect(controller.state.alert!.sequence, sequence);
       await controller.saveSettings(
@@ -263,6 +267,7 @@ void main() {
       api.revision++;
       api.signal();
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
       await tester.pump();
       expect(controller.state.unreadCount, 3);
       expect(controller.state.alert!.sequence, sequence);
@@ -270,6 +275,43 @@ void main() {
       await tester.pump();
     },
   );
+  testWidgets(
+    'Healthy heartbeats do not poll the inbox and bursts are coalesced',
+    (tester) async {
+      final api = _NotificationsApi()..rows.add(item(1));
+      final controller = NotificationInboxController(api);
+      controller.resume();
+      await tester.pump();
+      api.signal();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+      final baseline = api.listCalls;
+      for (int i = 0; i < 6; i++) {
+        await tester.pump(const Duration(seconds: 15));
+        api.streams.last.add(
+          Uint8List.fromList(
+            utf8.encode('event:heartbeat\ndata:{"kind":"heartbeat"}\n\n'),
+          ),
+        );
+        await tester.pump();
+      }
+      expect(api.listCalls, baseline);
+      api.rows.add(item(2));
+      api.revision++;
+      for (int i = 0; i < 100; i++) {
+        api.signal();
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+      expect(api.listCalls, baseline + 1);
+      expect(controller.state.unreadCount, 2);
+      controller.dispose();
+      await tester.pump();
+    },
+  );
+
   testWidgets('Stream reconnects after disconnect and stops when paused', (
     tester,
   ) async {

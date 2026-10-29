@@ -13,10 +13,14 @@ Stream<Map<String, dynamic>> decodeNotificationStream(
           .transform(utf8.decoder)
           .transform(const LineSplitter())) {
     if (line.isEmpty) {
-      if (event == 'inbox' && data.isNotEmpty) {
+      if ((event == 'inbox' || event == 'heartbeat') && data.isNotEmpty) {
         try {
           final payload = jsonDecode(data.join('\n'));
-          if (payload is Map<String, dynamic>) yield payload;
+          if (payload is Map<String, dynamic>) {
+            yield event == 'heartbeat'
+                ? {...payload, 'kind': 'heartbeat'}
+                : payload;
+          }
         } on FormatException {
           /* Wait for the next complete event. */
         }

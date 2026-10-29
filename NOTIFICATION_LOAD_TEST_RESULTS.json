@@ -1,0 +1,18 @@
+{
+  "connections" : 400,
+  "instances" : 2,
+  "limitPerInstance" : 200,
+  "connectionSetupMs" : 18863,
+  "idleSampleSeconds" : 3,
+  "baselineSqlStatements" : 12,
+  "sqlWith400IdleConnections" : 12,
+  "burstNotifications" : 100,
+  "remoteConnectionReceipts" : 199,
+  "burstStartToReceiptP95Ms" : 1492,
+  "subscriberReconnectResync" : true,
+  "brokerOutageBacklogRecovered" : true,
+  "recipientIsolation" : true,
+  "limitRejection429" : true,
+  "status" : "passed",
+  "durationMs" : 51835
+}

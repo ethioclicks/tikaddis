@@ -74,6 +74,10 @@ class NotificationInboxController
   CancelToken? _streamCancel;
   Timer? _retry;
   Timer? _fallback;
+  Timer? _liveTimer;
+  DateTime? _lastStreamFrame;
+  bool _liveDirty = false;
+  bool _liveProcessing = false;
   bool _foreground = false;
   int _streamGeneration = 0, _fetchGeneration = 0, _page = 0, _attempt = 0;
   int? _revision;
@@ -87,12 +91,17 @@ class NotificationInboxController
     unawaited(onAccountChange?.call() ?? Future<void>.value());
     unawaited(refresh());
     unawaited(_connect());
-    // Independent recovery if a proxy silently buffers/drops SSE. This timer
-    // runs only while foregrounded; normal updates still arrive through SSE.
-    _fallback = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => unawaited(_syncLive()),
-    );
+    // No periodic inbox fetch while the stream is healthy. Recover a disconnected
+    // or silently stalled connection; heartbeat frames themselves never query SQL.
+    _fallback = Timer.periodic(const Duration(seconds: 30), (_) {
+      final stale =
+          _lastStreamFrame == null ||
+          DateTime.now().difference(_lastStreamFrame!).inSeconds > 45;
+      if (!state.connected || stale || state.error != null) {
+        unawaited(_syncLive());
+        if (stale) unawaited(_connect());
+      }
+    });
   }
 
   void pause() {
@@ -101,6 +110,9 @@ class NotificationInboxController
     _streamCancel?.cancel();
     _retry?.cancel();
     _fallback?.cancel();
+    _liveTimer?.cancel();
+    _liveTimer = null;
+    _liveDirty = false;
     if (mounted) state = state.copyWith(connected: false);
   }
 
@@ -113,13 +125,14 @@ class NotificationInboxController
     try {
       final response = await api.openNotificationStream(cancel);
       if (!mounted || !_foreground || generation != _streamGeneration) return;
-      await for (final _ in decodeNotificationStream(response.data!.stream)) {
+      await for (final frame in decodeNotificationStream(
+        response.data!.stream,
+      )) {
         if (!mounted || !_foreground || generation != _streamGeneration) return;
         _attempt = 0;
-        state = state.copyWith(connected: true);
-        // Always refresh on resync frames: persistence is authoritative, including
-        // transactions whose IDs were allocated before a later commit.
-        await _syncLive();
+        _lastStreamFrame = DateTime.now();
+        state = state.copyWith(connected: true, error: state.error);
+        if (frame['kind'] != 'heartbeat') _scheduleLive();
       }
     } catch (_) {
       // Inbox data stays visible. HTTP 401 handling belongs to ApiService.
@@ -131,6 +144,23 @@ class NotificationInboxController
         _retry = Timer(Duration(seconds: seconds), () => unawaited(_connect()));
       }
     }
+  }
+
+  void _scheduleLive() {
+    _liveDirty = true;
+    if (_liveProcessing || _liveTimer != null) return;
+    _liveTimer = Timer(const Duration(milliseconds: 200), () async {
+      _liveTimer = null;
+      if (!mounted || !_foreground) return;
+      _liveProcessing = true;
+      _liveDirty = false;
+      try {
+        await _syncLive();
+      } finally {
+        _liveProcessing = false;
+        if (mounted && _foreground && _liveDirty) _scheduleLive();
+      }
+    });
   }
 
   Future<void> _syncLive() async {
