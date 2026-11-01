@@ -8,13 +8,28 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Load release signing config from key.properties (git-ignored). If it's
-// absent (e.g. CI without secrets, or a fresh clone) the release build falls
-// back to debug signing so it still compiles.
+// Load the existing upload key from key.properties (git-ignored).
+// Release artifacts must never silently use the debug key.
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.project == project && it.name.endsWith("Release") }) {
+        check(keystorePropertiesFile.exists()) {
+            "Release signing requires android/key.properties and the existing Play upload key."
+        }
+        listOf("keyAlias", "keyPassword", "storeFile", "storePassword").forEach { name ->
+            check(!keystoreProperties.getProperty(name).isNullOrBlank()) {
+                "Release signing requires '$name' in android/key.properties."
+            }
+        }
+        check(file(keystoreProperties.getProperty("storeFile")).isFile) {
+            "The release upload keystore configured in android/key.properties was not found."
+        }
+    }
 }
 
 android {
@@ -32,7 +47,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.ethioclicks.tikaddis"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -56,13 +70,7 @@ android {
 
     buildTypes {
         release {
-            // Use the real release key when key.properties is present;
-            // otherwise fall back to debug signing so the build still runs.
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

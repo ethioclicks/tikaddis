@@ -14,9 +14,12 @@ flutter run
 ```
 
 The app talks to the Tikaddis backend. The API base URL is configured in
-`lib/core/api_service.dart` (defaults to the Android emulator loopback
-`http://10.0.2.2:8081`). Point it at your backend host when running on a
-physical device or against a deployed environment.
+`lib/core/api_service.dart` and currently points to the hosted HTTPS backend.
+
+## Play Store releases
+
+See [the release checklist](play-store/README.md) for the signed app bundle,
+release notes, verification steps, and outstanding submission requirements.
 
 ## Project layout
 

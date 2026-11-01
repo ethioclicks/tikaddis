@@ -1,0 +1,7 @@
+<en-US>
+Stay signed in more reliably and keep your forms when your session needs verification.
+Get promotion and channel updates in the notification inbox.
+Manage campaign briefs, channel approvals, and promotion requests more easily.
+Find promotions faster with search and filters.
+Includes interface improvements and bug fixes.
+</en-US>
