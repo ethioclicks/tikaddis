@@ -230,6 +230,33 @@ class PriceOptions {
   };
 }
 
+/// A single "top viewed post" entry: a post/video link and its view count.
+/// Mirrors the backend TopViewCount / RecentViewCount value entities
+/// ({count, url}). The backend carries these in the topViews and
+/// recentViewCounts collections on InfluencerAccount.
+class ViewPost {
+  final String url;
+  final int count;
+
+  const ViewPost({required this.url, required this.count});
+
+  Map<String, dynamic> toJson() => {'url': url, 'count': count};
+
+  factory ViewPost.fromJson(Map<String, dynamic> j) => ViewPost(
+    url: (j['url'] ?? '') as String,
+    count: (j['count'] as num?)?.toInt() ?? 0,
+  );
+
+  static ViewPost? firstOf(dynamic list) {
+    if (list is List && list.isNotEmpty && list.first is Map) {
+      return ViewPost.fromJson(
+        Map<String, dynamic>.from(list.first as Map),
+      );
+    }
+    return null;
+  }
+}
+
 class InfluencerAccount {
   final int? id;
   final String? accountPublicId;
@@ -246,6 +273,12 @@ class InfluencerAccount {
   final bool verified;
   final AccountCategory? category;
 
+  /// Highest-viewed post of all time (link + count).
+  final ViewPost? topViewedPost;
+
+  /// Highest-viewed post this week (link + count).
+  final ViewPost? weeklyTopViewedPost;
+
   InfluencerAccount({
     this.id,
     this.accountPublicId,
@@ -261,6 +294,8 @@ class InfluencerAccount {
     this.approved = false,
     this.verified = false,
     this.category,
+    this.topViewedPost,
+    this.weeklyTopViewedPost,
   });
 
   double? get lowestCost {
@@ -306,6 +341,8 @@ class InfluencerAccount {
         category: j['category'] is Map<String, dynamic>
             ? AccountCategory.fromJson(j['category'] as Map<String, dynamic>)
             : null,
+        topViewedPost: ViewPost.firstOf(j['topViews']),
+        weeklyTopViewedPost: ViewPost.firstOf(j['recentViewCounts']),
       );
 }
 

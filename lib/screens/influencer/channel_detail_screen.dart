@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
+import '../../core/links.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
@@ -252,14 +253,9 @@ class _Detail extends ConsumerWidget {
                       Icon(Icons.link, size: 20, color: color),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(
-                          account.accountURL!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.neutral700,
-                            fontSize: 13.5,
-                          ),
+                        child: LinkText(
+                          url: account.accountURL,
+                          style: const TextStyle(fontSize: 13.5),
                         ),
                       ),
                     ],

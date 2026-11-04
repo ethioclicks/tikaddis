@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
+import '../../core/links.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
@@ -84,6 +85,25 @@ class _Detail extends StatelessWidget {
                     // Engagement highlight bar.
                     _EngagementCard(account: account, color: pColor),
                     const SizedBox(height: 24),
+
+                    if (account.topViewedPost != null ||
+                        account.weeklyTopViewedPost != null) ...[
+                      const _SectionTitle('Top posts'),
+                      const SizedBox(height: 12),
+                      if (account.topViewedPost != null)
+                        _TopPostRow(
+                          title: 'Top viewed post',
+                          post: account.topViewedPost!,
+                          color: pColor,
+                        ),
+                      if (account.weeklyTopViewedPost != null)
+                        _TopPostRow(
+                          title: "This week's top viewed",
+                          post: account.weeklyTopViewedPost!,
+                          color: pColor,
+                        ),
+                      const SizedBox(height: 24),
+                    ],
 
                     const _SectionTitle('Pricing'),
                     const SizedBox(height: 12),
@@ -563,6 +583,68 @@ class _PriceCard extends StatelessWidget {
               fontSize: 16,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A "top viewed post" row on the public account detail: a tappable link and
+/// its view count.
+class _TopPostRow extends StatelessWidget {
+  const _TopPostRow({
+    required this.title,
+    required this.post,
+    required this.color,
+  });
+
+  final String title;
+  final ViewPost post;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.play_circle_outline, color: color, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.neutral900,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                LinkText(
+                  url: post.url,
+                  label: 'Open post',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${Fmt.compact(post.count)} views',
+            style: const TextStyle(
+              color: AppColors.neutral700,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

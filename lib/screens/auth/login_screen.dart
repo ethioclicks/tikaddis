@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_button.dart';
@@ -28,30 +29,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  /// Normalise what the user typed into the stored form `0XXXXXXXXX`.
-  static String normalizePhone(String raw) {
-    var s = raw.trim().replaceAll(RegExp(r'[\s\-()]'), '');
-    if (s.startsWith('+251')) {
-      s = s.substring(4);
-    } else if (s.startsWith('251')) {
-      s = s.substring(3);
-    }
-    if (s.length == 9 && !s.startsWith('0')) s = '0$s';
-    return s;
-  }
+  /// Normalise what the user typed to `0` + the last 9 digits. The backend
+  /// only compares the last 9 digits, so +251 / 251 / 0 / bare input all work.
+  static String normalizePhone(String raw) => Phone.normalize(raw) ?? raw.trim();
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final identifier = _identifier.text.trim();
-    final isPhone = RegExp(r'^[+\d\s()\-]+$').hasMatch(identifier);
+    // Phone number only. Admins sign in with their phone number too.
+    final phone = normalizePhone(_identifier.text);
     try {
-      await ref
-          .read(authProvider.notifier)
-          .login(
-            isPhone ? normalizePhone(identifier) : identifier,
-            _password.text,
-          );
+      await ref.read(authProvider.notifier).login(phone, _password.text);
       if (!mounted) return;
       final isAdmin = ref.read(authProvider).isAdmin;
       context.go(isAdmin ? '/admin' : '/dashboard');
@@ -78,23 +66,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             AuthField(
               controller: _identifier,
-              label: 'Phone number or username',
-              hint: '0912345678 or username',
-              icon: Icons.person_outline,
-              keyboardType: TextInputType.text,
+              label: 'Phone number',
+              hint: '0912345678 or +251912345678',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              validator: (v) {
-                final identifier = (v ?? '').trim();
-                if (identifier.isEmpty) {
-                  return 'Enter your phone number or username';
-                }
-                final isPhone = RegExp(r'^[+\d\s()\-]+$').hasMatch(identifier);
-                if (isPhone &&
-                    !RegExp(r'^0\d{9}$').hasMatch(normalizePhone(identifier))) {
-                  return 'Enter a valid phone number';
-                }
-                return null;
-              },
+              validator: Phone.validate,
             ),
             const SizedBox(height: 16),
             AuthField(

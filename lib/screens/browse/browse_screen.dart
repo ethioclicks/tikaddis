@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/platform_logo.dart';
 
 /// Creator discovery — editorial: bold headline, tab filters, a large
 /// featured hero card, then a compact "Top creators" list.
@@ -373,6 +374,7 @@ class _FeaturedCard extends StatelessWidget {
                       color: pColor,
                       icon: Fmt.platformIcon(account.accountType),
                     ),
+                    // Social-platform pill: real brand logo + platform name.
                     Positioned(
                       top: 14,
                       left: 14,
@@ -386,12 +388,12 @@ class _FeaturedCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Fmt.platformIcon(account.accountType),
-                                color: pColor, size: 15),
+                            PlatformLogo(account.accountType,
+                                size: 14, color: pColor),
                             const SizedBox(width: 6),
                             Text(
-                              account.category?.categoryName ??
-                                  account.accountType?.label ??
+                              account.accountType?.label ??
+                                  account.category?.categoryName ??
                                   '',
                               style: const TextStyle(
                                 color: AppColors.neutral900,

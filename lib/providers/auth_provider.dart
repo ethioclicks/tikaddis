@@ -402,8 +402,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return 'Request submitted.';
       }
       // Reflect the new pending state locally so the UI stops offering "Apply
-      // now" and shows the pending state instead. Backend moved USER -> CANDIDATE.
-      final next = state.copyWith(isLoading: false, roles: const ['CANDIDATE']);
+      // now" and shows the pending state instead. Add CANDIDATE but KEEP the
+      // existing roles (e.g. USER). Dropping USER here previously changed the
+      // role set out from under the app and surfaced as an unexpected sign-out.
+      final mergedRoles = {...state.roles, 'CANDIDATE'}.toList();
+      final next = state.copyWith(isLoading: false, roles: mergedRoles);
       await _persist(next);
       if (generation == _authGeneration && state.pid == pid) state = next;
       return res.data?.toString() ?? 'Request submitted.';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_button.dart';
@@ -38,16 +39,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  static String _normalizePhone(String raw) {
-    var s = raw.trim().replaceAll(RegExp(r'[\s\-()]'), '');
-    if (s.startsWith('+251')) {
-      s = s.substring(4);
-    } else if (s.startsWith('251')) {
-      s = s.substring(3);
-    }
-    if (s.length == 9 && !s.startsWith('0')) s = '0$s';
-    return s;
-  }
+  static String _normalizePhone(String raw) => Phone.normalize(raw) ?? raw.trim();
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
