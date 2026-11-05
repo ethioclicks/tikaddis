@@ -1,5 +1,5 @@
-// Basic smoke test: the app boots to the animated splash screen,
-// then auto-navigates to the walkthrough on first launch.
+// Smoke test: the app boots to the splash, then lands on the launch screen
+// on first launch.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,24 +9,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tikaddis/main.dart';
 
 void main() {
-  testWidgets('App boots, shows splash, then lands on the walkthrough',
+  testWidgets('App boots, shows splash, then lands on the launch screen',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(const ProviderScope(child: EthioPromoApp()));
-    await tester.pump(const Duration(milliseconds: 1200));
 
-    // Splash shows the brand logo during the intro.
+    // Splash shows the brand logo and name.
     expect(find.byType(Image), findsOneWidget);
+    expect(find.text('Tikaddis'), findsOneWidget);
 
-    // Let the bootstrap delay (2.8s) fire so the splash navigates away.
-    // Lottie animates continuously, so we pump fixed steps rather than
-    // pumpAndSettle (which would never settle).
+    // Let startup state restore so the router leaves the splash.
     await tester.pump(const Duration(seconds: 3));
     await tester.pump(const Duration(milliseconds: 400));
 
-    // No onboarding flag was set, so we should land on the walkthrough.
-    expect(find.text('Skip'), findsOneWidget);
-    expect(find.text('Next'), findsOneWidget);
+    // No onboarding flag was set, so we should land on the launch screen.
+    expect(find.text('Get Started'), findsOneWidget);
+    expect(find.text('I already have an account'), findsOneWidget);
   });
 }

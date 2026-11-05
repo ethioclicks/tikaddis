@@ -1,199 +1,147 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/hex_pattern.dart';
+import '../../widgets/brand_mark.dart';
+import '../splash/splash_screen.dart' show kLaunchGradient;
 
-/// Two-slide walkthrough. Only the hero (top) swipes; the white sheet, dots
-/// and Skip / Next are fixed chrome — swiping or Next just changes the hero
-/// and the copy inside the sheet.
-class OnboardingScreen extends ConsumerStatefulWidget {
+/// Launch screen: brand mark on the blue gradient, a hero illustration, the
+/// headline, and the two entry actions (Get Started / I already have an
+/// account). Shown once on first launch; either action marks it as seen.
+class OnboardingScreen extends ConsumerWidget {
   const OnboardingScreen({super.key});
 
-  @override
-  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
-}
+  static const Color _ink = Color(0xFF111111);
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  // Brand colours drive everything so onboarding follows the logo/theme.
-  static const Color _navy = AppColors.primaryHover; // deep logo blue panel
-  static const Color _brand = AppColors.primary; // controls/accents
-
-  final _controller = PageController();
-  int _page = 0;
-
-  static const _slides = <_SlideData>[
-    _SlideData(
-      hero: _Hero.logo,
-      title: 'Find the right creators',
-      body:
-          'Browse real channels with audience size, views and price — all in '
-          'one place, before you spend a birr.',
-    ),
-    _SlideData(
-      hero: _Hero.rocket,
-      title: 'Request, approve, go live',
-      body:
-          'Send a promotion in a tap. Once the creator and admin approve, it '
-          'runs and gets marked fulfilled.',
-    ),
-  ];
-
-  bool get _isLast => _page == _slides.length - 1;
-
-  Future<void> _finish() =>
-      ref.read(authProvider.notifier).completeOnboarding();
-
-  void _next() {
-    if (_isLast) {
-      _finish();
-    } else {
-      _controller.nextPage(
-        duration: const Duration(milliseconds: 360),
-        curve: Curves.easeOutCubic,
-      );
-    }
+  Future<void> _go(WidgetRef ref, BuildContext context, String route) async {
+    await ref.read(authProvider.notifier).completeOnboarding();
+    if (context.mounted) context.go(route);
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final slide = _slides[_page];
-
-    return Scaffold(
-      backgroundColor: _navy,
-      body: Column(
-        children: [
-          // ── Top: ONLY the hero swipes ─────────────────────────────────
-          Expanded(
-            flex: 55,
-            child: Stack(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(gradient: kLaunchGradient),
+          child: SafeArea(
+            child: Column(
               children: [
-                const Positioned.fill(
-                  child: HexPattern(
-                      color: Colors.white, opacity: 0.05, radius: 46),
-                ),
-                PageView.builder(
-                  controller: _controller,
-                  itemCount: _slides.length,
-                  onPageChanged: (i) => setState(() => _page = i),
-                  itemBuilder: (context, i) =>
-                      Center(child: _HeroVisual(hero: _slides[i].hero)),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Bottom: FIXED white sheet (only the text changes) ─────────
-          Expanded(
-            flex: 45,
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(34),
-                  topRight: Radius.circular(34),
-                ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 40, 28, 20),
+                const SizedBox(height: 14),
+                const BrandMark(logoHeight: 40, fontSize: 21),
+                const Expanded(child: Center(child: _Hero())),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
                   child: Column(
                     children: [
-                      // Copy changes with the page — no animation.
-                      Column(
-                        children: [
-                          Text(
-                            slide.title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppColors.neutral900,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            slide.body,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppColors.neutral500,
-                              fontSize: 15,
-                              height: 1.55,
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'Promotion, done for you.\nAnytime, anywhere',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _ink,
+                          fontSize: 28,
+                          height: 1.2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.6,
+                        ),
                       ),
-
-                      const Spacer(),
-
-                      // Fixed dots.
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_slides.length, (i) {
-                          final active = i == _page;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 240),
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            height: 9,
-                            width: active ? 26 : 9,
-                            decoration: BoxDecoration(
-                              color: active ? _brand : AppColors.neutral200,
-                              borderRadius: BorderRadius.circular(5),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: FilledButton(
+                          onPressed: () => _go(ref, context, '/register'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _ink,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          );
-                        }),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: const Text('Get Started'),
+                        ),
                       ),
-
-                      const Spacer(),
-
-                      // Fixed Skip / Next.
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: _isLast ? null : _finish,
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.neutral500,
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: FilledButton(
+                          onPressed: () => _go(ref, context, '/login'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.neutral100,
+                            foregroundColor: AppColors.neutral900,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Text(_isLast ? '' : 'Skip'),
-                          ),
-                          TextButton(
-                            onPressed: _next,
-                            style:
-                                TextButton.styleFrom(foregroundColor: _brand),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _isLast ? 'Get started' : 'Next',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.arrow_forward_rounded,
-                                    size: 18),
-                              ],
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
+                          child: const Text('I already have an account'),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'By continuing you agree to our Terms of Service\n'
+                        'and Privacy Policy',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.neutral500,
+                          fontSize: 12.5,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hero artwork: the full-colour logo shown as-is, with sparkles. Stands in for the reference's 3D object.
+class _Hero extends StatelessWidget {
+  const _Hero();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 260,
+      height: 270,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // The logo exactly as designed, no tile or background behind it.
+          Image.asset(
+            'assets/images/logo.png',
+            width: 225,
+            height: 225,
+            fit: BoxFit.contain,
+          ),
+          const Positioned(
+            top: 4,
+            right: 8,
+            child: _Sparkle(size: 46, color: Colors.white),
+          ),
+          const Positioned(
+            top: 70,
+            left: 0,
+            child: _Sparkle(size: 20, color: AppColors.accentLight),
           ),
         ],
       ),
@@ -201,38 +149,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-enum _Hero { logo, rocket }
-
-class _SlideData {
-  const _SlideData({
-    required this.hero,
-    required this.title,
-    required this.body,
-  });
-  final _Hero hero;
-  final String title;
-  final String body;
-}
-
-class _HeroVisual extends StatelessWidget {
-  const _HeroVisual({required this.hero});
-  final _Hero hero;
+class _Sparkle extends StatelessWidget {
+  const _Sparkle({required this.size, required this.color});
+  final double size;
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 148,
-      height: 148,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-      ),
-      child: hero == _Hero.logo
-          ? Image.asset('assets/images/logo.png', height: 92)
-          : const Icon(Icons.rocket_launch_rounded,
-              color: Colors.white, size: 68),
-    );
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: CustomPaint(
+      size: Size.square(size),
+      painter: _SparklePainter(color),
+    ),
+  );
+}
+
+class _SparklePainter extends CustomPainter {
+  _SparklePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final cx = w / 2, cy = h / 2, d = w * 0.12;
+    final path = Path()
+      ..moveTo(cx, 0)
+      ..quadraticBezierTo(cx + d, cy - d, w, cy)
+      ..quadraticBezierTo(cx + d, cy + d, cx, h)
+      ..quadraticBezierTo(cx - d, cy + d, 0, cy)
+      ..quadraticBezierTo(cx - d, cy - d, cx, 0)
+      ..close();
+    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.25), 4, false);
+    canvas.drawPath(path, Paint()..color = color);
   }
+
+  @override
+  bool shouldRepaint(_SparklePainter old) => old.color != color;
 }
