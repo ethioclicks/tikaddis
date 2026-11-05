@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_mark.dart';
+import '../../widgets/sparkle.dart';
 import '../splash/splash_screen.dart' show kLaunchGradient;
 
 /// Launch screen: brand mark on the blue gradient, a hero illustration, the
@@ -136,52 +137,15 @@ class _Hero extends StatelessWidget {
           const Positioned(
             top: 4,
             right: 8,
-            child: _Sparkle(size: 46, color: Colors.white),
+            child: Sparkle(size: 46, color: Colors.white),
           ),
           const Positioned(
             top: 70,
             left: 0,
-            child: _Sparkle(size: 20, color: AppColors.accentLight),
+            child: Sparkle(size: 20, color: AppColors.accentLight),
           ),
         ],
       ),
     );
   }
-}
-
-class _Sparkle extends StatelessWidget {
-  const _Sparkle({required this.size, required this.color});
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: CustomPaint(
-      size: Size.square(size),
-      painter: _SparklePainter(color),
-    ),
-  );
-}
-
-class _SparklePainter extends CustomPainter {
-  _SparklePainter(this.color);
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    final cx = w / 2, cy = h / 2, d = w * 0.12;
-    final path = Path()
-      ..moveTo(cx, 0)
-      ..quadraticBezierTo(cx + d, cy - d, w, cy)
-      ..quadraticBezierTo(cx + d, cy + d, cx, h)
-      ..quadraticBezierTo(cx - d, cy + d, 0, cy)
-      ..quadraticBezierTo(cx - d, cy - d, cx, 0)
-      ..close();
-    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.25), 4, false);
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(_SparklePainter old) => old.color != color;
 }

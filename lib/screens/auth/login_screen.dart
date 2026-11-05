@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import 'auth_scaffold.dart';
 
@@ -67,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             AuthField(
               controller: _identifier,
               label: 'Phone number',
-              hint: '0912345678 or +251912345678',
+              hint: '0912345678',
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
@@ -105,30 +104,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            PrimaryButton(
+            AuthButton(
               label: 'Sign in',
               loading: isLoading,
               onPressed: _submit,
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  "Don't have an account? ",
-                  style: TextStyle(color: AppColors.neutral500),
-                ),
-                GestureDetector(
-                  onTap: isLoading ? null : () => context.push('/register'),
-                  child: const Text(
-                    'Create one',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            AuthButton(
+              label: 'Create an account',
+              secondary: true,
+              onPressed: isLoading ? null : () => context.push('/register'),
             ),
           ],
         ),

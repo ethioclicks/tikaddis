@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import 'auth_scaffold.dart';
 
@@ -190,7 +189,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               },
             ),
             const SizedBox(height: 24),
-            PrimaryButton(
+            AuthButton(
               label: 'Create account',
               loading: isLoading,
               onPressed: _submit,

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme.dart';
-import '../../widgets/hex_pattern.dart';
+import '../../widgets/brand_mark.dart';
+import '../../widgets/dots_loading.dart';
+import '../../widgets/sparkle.dart';
 
-/// Shared branded shell for the auth screens (login / register / reset).
-/// A navy brand panel on top (logo in a soft circle + hex texture) and a
-/// white rounded sheet below that scrolls its form content — matching the
-/// onboarding design language.
+/// Shared shell for the auth screens (login / register / reset), matching the
+/// splash and launch screens: a blue gradient header with the brand mark that
+/// fades to white, then a clean white area that scrolls the form.
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
@@ -16,7 +18,18 @@ class AuthScaffold extends StatelessWidget {
     this.onBack,
   });
 
-  static const Color navy = AppColors.primaryHover;
+  static const LinearGradient _headerGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      AppColors.primaryHover,
+      AppColors.primary,
+      Color(0xFF6FAEFF),
+      Color(0xFFD6E8FF),
+      Colors.white,
+    ],
+    stops: [0.0, 0.22, 0.46, 0.74, 1.0],
+  );
 
   final String title;
   final String subtitle;
@@ -25,96 +38,155 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: navy,
-      resizeToAvoidBottomInset: true,
-      body: Column(
-        children: [
-          // Brand panel.
-          SizedBox(
-            height: MediaQuery.of(context).padding.top + 180,
-            child: Stack(
-              children: [
-                const Positioned.fill(
-                  child: HexPattern(
-                      color: Colors.white, opacity: 0.05, radius: 46),
-                ),
-                if (onBack != null)
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 4,
-                    left: 4,
-                    child: IconButton(
-                      onPressed: onBack,
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                  ),
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                        top: MediaQuery.of(context).padding.top),
-                    child: Container(
-                      width: 104,
-                      height: 104,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.10),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.22)),
-                      ),
-                      child: Image.asset('assets/images/logo.png', height: 64),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    final top = MediaQuery.of(context).padding.top;
 
-          // White rounded sheet with the form.
-          Expanded(
-            child: Container(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        resizeToAvoidBottomInset: true,
+        body: Column(
+          children: [
+            // Gradient header that fades into the white form area.
+            Container(
+              height: top + 150,
               width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(34),
-                  topRight: Radius.circular(34),
-                ),
+              decoration: const BoxDecoration(gradient: _headerGradient),
+              child: Stack(
+                children: [
+                  if (onBack != null)
+                    Positioned(
+                      top: top + 4,
+                      left: 4,
+                      child: IconButton(
+                        tooltip: 'Back',
+                        onPressed: onBack,
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      ),
+                    ),
+                  Positioned(
+                    top: top + 14,
+                    left: 0,
+                    right: 0,
+                    child: const Center(
+                      child: BrandMark(logoHeight: 40, fontSize: 21),
+                    ),
+                  ),
+                  Positioned(
+                    top: top + 64,
+                    right: 36,
+                    child: const Sparkle(size: 26, color: Colors.white),
+                  ),
+                  Positioned(
+                    top: top + 92,
+                    left: 40,
+                    child: const Sparkle(
+                      size: 14,
+                      color: AppColors.accentLight,
+                    ),
+                  ),
+                ],
               ),
+            ),
+
+            // White form area.
+            Expanded(
               child: SafeArea(
                 top: false,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: AppColors.neutral900,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                // Short forms (login) sit vertically centered in the white
+                // area; long forms (register) simply scroll from the top.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - 28,
+                      ),
+                      // Slightly above true center (-1 = top, 0 = center).
+                      child: Align(
+                        alignment: const Alignment(0, -0.35),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              title,
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                color: Color(0xFF111111),
+                                fontSize: 28,
+                                height: 1.2,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              subtitle,
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                color: AppColors.neutral500,
+                                fontSize: 15,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            child,
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: AppColors.neutral500,
-                          fontSize: 15,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 26),
-                      child,
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width action button for the auth screens, matching the launch screen:
+/// a black primary pill and a soft grey secondary one.
+class AuthButton extends StatelessWidget {
+  const AuthButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+    this.secondary = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+  final bool secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = secondary ? AppColors.neutral100 : const Color(0xFF111111);
+    final fg = secondary ? AppColors.neutral900 : Colors.white;
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: FilledButton(
+        onPressed: loading ? null : onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: bg,
+          disabledBackgroundColor: bg.withValues(alpha: 0.7),
+          foregroundColor: fg,
+          disabledForegroundColor: fg,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
+          textStyle: TextStyle(
+            fontSize: 16,
+            fontWeight: secondary ? FontWeight.w500 : FontWeight.w600,
+          ),
+        ),
+        child: loading ? DotsLoading(color: fg) : Text(label),
       ),
     );
   }
@@ -179,8 +251,10 @@ class AuthField extends StatelessWidget {
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle:
-                const TextStyle(color: AppColors.neutral300, fontSize: 15),
+            hintStyle: const TextStyle(
+              color: AppColors.neutral500,
+              fontSize: 15,
+            ),
             // Leading icon + an always-visible prefix label (e.g. "+251").
             // Using prefixIcon (not prefixText) so it shows even when the
             // field is empty and unfocused.
@@ -206,24 +280,26 @@ class AuthField extends StatelessWidget {
             prefixIconConstraints:
                 const BoxConstraints(minWidth: 0, minHeight: 0),
             suffixIcon: trailing,
+            // Soft grey fill, no outline until focused (like the launch
+            // screen's secondary button).
             filled: true,
-            fillColor: AppColors.neutral50,
+            fillColor: AppColors.neutral100,
             contentPadding:
-                const EdgeInsets.only(left: 2, right: 14, top: 16, bottom: 16),
+                const EdgeInsets.only(left: 2, right: 14, top: 17, bottom: 17),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.neutral200),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFDC2626)),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.6),
             ),
           ),

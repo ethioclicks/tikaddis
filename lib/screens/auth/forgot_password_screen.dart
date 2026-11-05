@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import 'auth_scaffold.dart';
 
@@ -124,7 +123,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
           ),
           const SizedBox(height: 22),
-          PrimaryButton(
+          AuthButton(
             label: 'Send reset code',
             loading: isLoading,
             onPressed: _requestOtp,
@@ -182,7 +181,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
           ),
           const SizedBox(height: 22),
-          PrimaryButton(
+          AuthButton(
             label: 'Reset password',
             loading: isLoading,
             onPressed: _resetPassword,
