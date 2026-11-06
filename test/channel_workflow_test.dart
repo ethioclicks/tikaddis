@@ -20,7 +20,8 @@ class _ChannelApi extends ApiService {
   Future<Response> adminAccountsByStatus(
     String status, {
     int page = 0,
-    int size = 30,
+    int size = 100,
+    String sort = 'title,asc',
   }) async => Response(
     requestOptions: RequestOptions(path: '/test'),
     data: [

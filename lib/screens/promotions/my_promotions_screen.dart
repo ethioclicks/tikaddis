@@ -7,6 +7,7 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/app_image.dart';
 
 /// Business owner's promotions — editorial: bold headline, search, filter
 /// tabs, and image-forward request cards.
@@ -277,7 +278,7 @@ class _PromotionCard extends StatelessWidget {
                       color: pColor.withValues(alpha: 0.10),
                       image: hasImage
                           ? DecorationImage(
-                              image: NetworkImage(account!.imageURL!),
+                              image: NetworkImage(mediaUrl(account!.imageURL)!),
                               fit: BoxFit.cover,
                             )
                           : null,

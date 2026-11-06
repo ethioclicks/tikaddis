@@ -14,7 +14,7 @@ class AdminOverviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingAccounts = ref.watch(adminAccountsProvider('DISAPPROVED'));
+    final pendingAccounts = ref.watch(adminAccountsProvider(('DISAPPROVED', 'title,asc')));
     final requested = ref.watch(adminPromotionsProvider('REQUESTED'));
     final users = ref.watch(adminUsersProvider);
     final name = ref.watch(authProvider).firstName ?? 'Admin';

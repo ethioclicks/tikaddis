@@ -99,6 +99,12 @@ class UserProfile {
   final UserAddress? address;
   final List<String> roles;
 
+  /// Creator profile (what other people see). All optional.
+  final String? headline;
+  final String? biography;
+  final String? profileImageUrl;
+  final List<String> galleryImages;
+
   UserProfile({
     this.userPublicId,
     this.firstName,
@@ -107,7 +113,18 @@ class UserProfile {
     this.email,
     this.address,
     this.roles = const [],
+    this.headline,
+    this.biography,
+    this.profileImageUrl,
+    this.galleryImages = const [],
   });
+
+  /// True once the user has written anything for their creator profile.
+  bool get hasCreatorProfile =>
+      (headline ?? '').isNotEmpty ||
+      (biography ?? '').isNotEmpty ||
+      (profileImageUrl ?? '').isNotEmpty ||
+      galleryImages.isNotEmpty;
 
   String get fullName =>
       [firstName, lastName].where((e) => (e ?? '').isNotEmpty).join(' ').trim();
@@ -122,6 +139,46 @@ class UserProfile {
         ? UserAddress.fromJson(j['address'] as Map<String, dynamic>)
         : null,
     roles: (j['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+    headline: j['headline'] as String?,
+    biography: j['biography'] as String?,
+    profileImageUrl: j['profileImageUrl'] as String?,
+    galleryImages:
+        (j['galleryImages'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+  );
+}
+
+/// A channel owner's published creator profile, as shown on the channel page.
+/// Mirrors the backend CreatorSummary (name, headline, bio and photos only).
+class CreatorSummary {
+  final String? name;
+  final String? headline;
+  final String? biography;
+  final String? profileImageUrl;
+  final List<String> galleryImages;
+
+  const CreatorSummary({
+    this.name,
+    this.headline,
+    this.biography,
+    this.profileImageUrl,
+    this.galleryImages = const [],
+  });
+
+  bool get isEmpty =>
+      (headline ?? '').isEmpty &&
+      (biography ?? '').isEmpty &&
+      (profileImageUrl ?? '').isEmpty &&
+      galleryImages.isEmpty;
+
+  factory CreatorSummary.fromJson(Map<String, dynamic> j) => CreatorSummary(
+    name: j['name'] as String?,
+    headline: j['headline'] as String?,
+    biography: j['biography'] as String?,
+    profileImageUrl: j['profileImageUrl'] as String?,
+    galleryImages:
+        (j['galleryImages'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
   );
 }
 
@@ -279,6 +336,12 @@ class InfluencerAccount {
   /// Highest-viewed post this week (link + count).
   final ViewPost? weeklyTopViewedPost;
 
+  /// Set by an admin; featured channels are highlighted on Browse.
+  final bool featured;
+
+  /// The owner's published creator profile (only present on a single-channel read).
+  final CreatorSummary? creator;
+
   InfluencerAccount({
     this.id,
     this.accountPublicId,
@@ -296,6 +359,8 @@ class InfluencerAccount {
     this.category,
     this.topViewedPost,
     this.weeklyTopViewedPost,
+    this.featured = false,
+    this.creator,
   });
 
   double? get lowestCost {
@@ -343,6 +408,12 @@ class InfluencerAccount {
             : null,
         topViewedPost: ViewPost.firstOf(j['topViews']),
         weeklyTopViewedPost: ViewPost.firstOf(j['recentViewCounts']),
+        featured: j['featured'] as bool? ?? false,
+        creator: j['creator'] is Map
+            ? CreatorSummary.fromJson(
+                Map<String, dynamic>.from(j['creator'] as Map),
+              )
+            : null,
       );
 }
 

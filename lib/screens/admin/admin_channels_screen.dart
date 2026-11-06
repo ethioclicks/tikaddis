@@ -1,4 +1,3 @@
-import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +8,20 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/app_image.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/dots_loading.dart';
 
-/// Admin: review influencer channels and approve/disapprove them.
+/// Sort choices for the admin channel list: (label, Spring sort expression).
+const List<(String, String)> _sortOptions = [
+  ('Name A–Z', 'title,asc'),
+  ('Name Z–A', 'title,desc'),
+  ('Newest first', 'id,desc'),
+  ('Oldest first', 'id,asc'),
+];
+
+/// Admin: review influencer channels, open their details, approve or
+/// disapprove them, and choose which ones are featured.
 class AdminChannelsScreen extends ConsumerStatefulWidget {
   const AdminChannelsScreen({super.key});
 
@@ -22,10 +32,16 @@ class AdminChannelsScreen extends ConsumerStatefulWidget {
 
 class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
   String _status = 'ALL'; // ALL / APPROVED / DISAPPROVED
+  String _sort = _sortOptions.first.$2; // ascending by name
+
+  AdminAccountsQuery get _query => (_status, _sort);
+
+  String get _sortLabel =>
+      _sortOptions.firstWhere((o) => o.$2 == _sort).$1;
 
   @override
   Widget build(BuildContext context) {
-    final accounts = ref.watch(adminAccountsProvider(_status));
+    final accounts = ref.watch(adminAccountsProvider(_query));
 
     return Scaffold(
       backgroundColor: AppColors.neutral50,
@@ -34,7 +50,7 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
               child: Row(
                 children: [
                   const Expanded(
@@ -62,12 +78,72 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
             options: const ['ALL', 'APPROVED', 'DISAPPROVED'],
             onChanged: (v) => setState(() => _status = v),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    accounts.maybeWhen(
+                      data: (l) =>
+                          '${l.length} ${l.length == 1 ? 'channel' : 'channels'}',
+                      orElse: () => '',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.neutral500,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: 'Sort channels',
+                  initialValue: _sort,
+                  onSelected: (v) => setState(() => _sort = v),
+                  itemBuilder: (_) => [
+                    for (final o in _sortOptions)
+                      PopupMenuItem(value: o.$2, child: Text(o.$1)),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.sort_rounded,
+                          size: 18,
+                          color: AppColors.neutral700,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _sortLabel,
+                          style: const TextStyle(
+                            color: AppColors.neutral700,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.neutral700,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: accounts.when(
               loading: () => const LoadingView(),
               error: (e, _) => ErrorView(
                 message: 'Could not load channels.',
-                onRetry: () => ref.invalidate(adminAccountsProvider(_status)),
+                onRetry: () => ref.invalidate(adminAccountsProvider(_query)),
               ),
               data: (list) {
                 if (list.isEmpty) {
@@ -79,9 +155,9 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
                 return RefreshIndicator(
                   color: AppColors.primary,
                   onRefresh: () async =>
-                      ref.invalidate(adminAccountsProvider(_status)),
+                      ref.invalidate(adminAccountsProvider(_query)),
                   child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
                     itemCount: list.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
@@ -92,6 +168,7 @@ class _AdminChannelsScreenState extends ConsumerState<AdminChannelsScreen> {
                         ref.invalidate(adminAccountsProvider);
                         ref.invalidate(myAccountsProvider);
                         ref.invalidate(approvedAccountsProvider);
+                        ref.invalidate(featuredAccountsProvider);
                         if (list[i].accountPublicId != null) {
                           ref.invalidate(
                             accountDetailProvider(list[i].accountPublicId!),
@@ -126,10 +203,25 @@ class _AdminChannelCard extends ConsumerStatefulWidget {
 class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
   bool _busy = false;
   bool? _approved;
+  bool? _featured;
+
   @override
   void didUpdateWidget(covariant _AdminChannelCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.account.approved != widget.account.approved) _approved = null;
+    if (oldWidget.account.featured != widget.account.featured) {
+      _featured = null;
+    }
+  }
+
+  String _errorText(DioException e, String fallback) {
+    final data = e.response?.data;
+    if (data is String && data.isNotEmpty) return data;
+    if (data is Map && data['message'] != null) {
+      final text = data['message'].toString().replaceFirst('Cause by:', '').trim();
+      if (text.isNotEmpty) return text;
+    }
+    return fallback;
   }
 
   Future<void> _act(String option) async {
@@ -139,7 +231,11 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
     try {
       await ref.read(apiServiceProvider).adminApproveAccount(id, option);
       if (!mounted) return;
-      setState(() => _approved = option == 'APPROVE');
+      setState(() {
+        _approved = option == 'APPROVE';
+        // Disapproving also removes a channel from the featured list.
+        if (option != 'APPROVE') _featured = false;
+      });
       widget.onChanged();
       AppToast.success(
         context,
@@ -148,13 +244,28 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      final data = e.response?.data;
-      AppToast.error(
+      AppToast.error(context, _errorText(e, 'Could not update the channel.'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _toggleFeatured(bool next) async {
+    final id = widget.account.accountPublicId;
+    if (id == null) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(apiServiceProvider).adminFeatureAccount(id, next);
+      if (!mounted) return;
+      setState(() => _featured = next);
+      widget.onChanged();
+      AppToast.success(
         context,
-        data is String && data.isNotEmpty
-            ? data
-            : 'Could not update the channel.',
+        next ? 'Channel featured.' : 'Removed from featured.',
       );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, _errorText(e, 'Could not update featured.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -164,125 +275,197 @@ class _AdminChannelCardState extends ConsumerState<_AdminChannelCard> {
   Widget build(BuildContext context) {
     final a = widget.account;
     final approved = _approved ?? a.approved;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final featured = _featured ?? a.featured;
+    final id = a.accountPublicId;
+    final platformColor = Fmt.platformColor(a.accountType);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        onTap: id == null ? null : () => context.push('/admin/channel/$id'),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.neutral200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Fmt.platformColor(
-                    a.accountType,
-                  ).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Fmt.platformIcon(a.accountType),
-                  color: Fmt.platformColor(a.accountType),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      a.title ?? 'Untitled',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.neutral900,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w600,
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: AppImage(
+                        a.imageURL,
+                        fallback: Container(
+                          color: platformColor.withValues(alpha: 0.12),
+                          child: Icon(
+                            Fmt.platformIcon(a.accountType),
+                            color: platformColor,
+                          ),
+                        ),
                       ),
                     ),
-                    Text(
-                      [
-                        a.accountType?.label,
-                        a.category?.categoryName,
-                      ].where((e) => e != null).join(' · '),
-                      style: const TextStyle(
-                        color: AppColors.neutral500,
-                        fontSize: 13,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.title ?? 'Untitled',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.neutral900,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          [
+                            a.accountType?.label,
+                            a.category?.categoryName,
+                          ].where((e) => e != null).join(' · '),
+                          style: const TextStyle(
+                            color: AppColors.neutral500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _Pill(
+                    text: approved ? 'Approved' : 'Not approved',
+                    approved: approved,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  // Wraps onto a second line on narrow phones instead of overflowing.
+                  Expanded(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.group_outlined,
+                              size: 15,
+                              color: AppColors.neutral500,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${Fmt.compact(a.audienceCount)} audience',
+                              style: const TextStyle(
+                                color: AppColors.neutral600,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (a.lowestCost != null)
+                          Text(
+                            'from ${Fmt.birr(a.lowestCost!)}',
+                            style: const TextStyle(
+                              color: AppColors.accentHover,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Featured toggle: only approved channels can be featured.
+                  Tooltip(
+                    message: featured
+                        ? 'Remove from featured'
+                        : approved
+                        ? 'Feature this channel'
+                        : 'Approve the channel to feature it',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: _busy || (!approved && !featured)
+                          ? null
+                          : () => _toggleFeatured(!featured),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              featured
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              size: 20,
+                              color: featured
+                                  ? AppColors.accent
+                                  : approved
+                                  ? AppColors.neutral500
+                                  : AppColors.neutral300,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              featured ? 'Featured' : 'Feature',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: featured
+                                    ? AppColors.accentHover
+                                    : AppColors.neutral600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_busy)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(4),
+                    child: DotsLoading(color: AppColors.primary),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: approved ? () => _act('DISAPPROVE') : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFB91C1C),
+                          side: const BorderSide(color: Color(0xFFFECACA)),
+                        ),
+                        child: const Text('Disapprove'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: approved ? null : () => _act('APPROVE'),
+                        child: Text(approved ? 'Approved' : 'Approve'),
                       ),
                     ),
                   ],
                 ),
-              ),
-              _Pill(
-                text: approved ? 'Approved' : 'Pending / disapproved',
-                approved: approved,
-              ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(
-                Icons.group_outlined,
-                size: 15,
-                color: AppColors.neutral500,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${Fmt.compact(a.audienceCount)} audience',
-                style: const TextStyle(
-                  color: AppColors.neutral600,
-                  fontSize: 12.5,
-                ),
-              ),
-              const Spacer(),
-              if (a.lowestCost != null)
-                Text(
-                  'from ${Fmt.birr(a.lowestCost!)}',
-                  style: const TextStyle(
-                    color: AppColors.accentHover,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (_busy)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(4),
-                child: DotsLoading(color: AppColors.primary),
-              ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: approved ? () => _act('DISAPPROVE') : null,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB91C1C),
-                      side: const BorderSide(color: Color(0xFFFECACA)),
-                    ),
-                    child: const Text('Disapprove'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: approved ? null : () => _act('APPROVE'),
-                    child: Text(approved ? 'Approved' : 'Approve'),
-                  ),
-                ),
-              ],
-            ),
-        ],
+        ),
       ),
     );
   }

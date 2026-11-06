@@ -9,7 +9,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/dots_loading.dart';
 import '../../widgets/hex_pattern.dart';
-import '../../widgets/app_toast.dart';
 import '../../widgets/delete_account_dialog.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -102,17 +101,6 @@ class _ProfileBody extends ConsumerWidget {
     }
   }
 
-  Future<void> _becomeInfluencer(BuildContext context, WidgetRef ref) async {
-    try {
-      final msg = await ref.read(authProvider.notifier).becomeInfluencer();
-      if (!context.mounted) return;
-      AppToast.success(context, msg);
-    } on AuthException catch (e) {
-      if (!context.mounted) return;
-      AppToast.error(context, e.message);
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = profile.fullName.isNotEmpty
@@ -137,7 +125,9 @@ class _ProfileBody extends ConsumerWidget {
           _BecomeInfluencerCard(
             isCandidate: isCandidate,
             isLoading: isLoading,
-            onApply: () => _becomeInfluencer(context, ref),
+            // Applying starts with building the creator profile (bio + photos);
+            // the application is sent when that is saved.
+            onApply: () => context.push('/creator-profile?apply=1'),
           ),
           const SizedBox(height: 24),
         ],
@@ -169,19 +159,27 @@ class _ProfileBody extends ConsumerWidget {
           ],
         ),
 
-        if (auth.isInfluencer) ...[
+        if (auth.isInfluencer || isCandidate) ...[
           const SizedBox(height: 24),
           const _SectionLabel('Creator'),
           const SizedBox(height: 10),
           _SectionCard(
             children: [
               _ActionRow(
-                icon: Icons.storefront_outlined,
-                title: 'Creator space',
-                subtitle: 'Manage channels and incoming requests',
-                onTap: () => context.go('/browse'),
-                last: true,
+                icon: Icons.badge_outlined,
+                title: 'Creator profile',
+                subtitle: 'Edit your bio, photo and gallery',
+                onTap: () => context.push('/creator-profile'),
+                last: !auth.isInfluencer,
               ),
+              if (auth.isInfluencer)
+                _ActionRow(
+                  icon: Icons.storefront_outlined,
+                  title: 'Creator space',
+                  subtitle: 'Manage channels and incoming requests',
+                  onTap: () => context.go('/browse'),
+                  last: true,
+                ),
             ],
           ),
         ],

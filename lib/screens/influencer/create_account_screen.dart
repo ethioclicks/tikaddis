@@ -11,7 +11,9 @@ import '../../core/links.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/app_image.dart';
 import '../../widgets/dots_loading.dart';
+import '../../widgets/image_upload.dart';
 import '../../widgets/platform_logo.dart';
 
 /// Create a new influencer account.
@@ -60,6 +62,11 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
   AccountType? _accountType;
   AccountCategory? _category;
+
+  /// The channel's profile image (path or link). Shown on Browse and on the
+  /// featured card.
+  String? _imageUrl;
+  bool _uploadingImage = false;
   final List<_PriceRowData> _prices = [];
 
   bool _submitting = false;
@@ -88,6 +95,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       }
       _accountType = a.accountType;
       _category = a.category;
+      _imageUrl = (a.imageURL ?? '').isEmpty ? null : a.imageURL;
       for (final p in a.priceOptions) {
         final row = _PriceRowData(p.priceType ?? PriceType.perDay);
         row.cost.text = p.cost == p.cost.roundToDouble()
@@ -118,6 +126,16 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       p.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _uploadingImage = true);
+    final url = await pickAndUploadImage(context, ref);
+    if (!mounted) return;
+    setState(() {
+      _uploadingImage = false;
+      if (url != null) _imageUrl = url;
+    });
   }
 
   /// A view-post entry as {url, count}, or null when both fields are blank.
@@ -161,6 +179,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       'minViewPerPostCount': int.tryParse(_minViews.text.trim()) ?? 0,
       'maxViewPerPostCount': int.tryParse(_maxViews.text.trim()) ?? 0,
       'priceOptions': priceOptions,
+      // When editing, always send the image ('' clears it) so removing works
+      // and an edit never wipes it by omission. On create, only if chosen.
+      if (_isEdit || _imageUrl != null) 'imageURL': _imageUrl ?? '',
       // Backend carries the two posts in these collections (each {url, count}).
       if (top != null) 'topViews': [top],
       if (week != null) 'recentViewCounts': [week],
@@ -205,6 +226,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       title: body['title'] as String?,
       description: body['description'] as String?,
       accountURL: body['accountURL'] as String?,
+      imageURL: _imageUrl,
       accountType: _accountType,
       audienceCount: body['audienceCount'] as int,
       minViewPerPostCount: body['minViewPerPostCount'] as int,
@@ -310,6 +332,17 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_error != null) _ErrorBanner(message: _error!),
+
+                _label('Channel image'),
+                _ChannelImagePicker(
+                  imageUrl: _imageUrl,
+                  uploading: _uploadingImage,
+                  onPick: _submitting || _uploadingImage ? null : _pickImage,
+                  onRemove: _submitting || _uploadingImage
+                      ? null
+                      : () => setState(() => _imageUrl = null),
+                ),
+                const SizedBox(height: 16),
 
                 _label('Platform'),
                 platforms.when(
@@ -601,6 +634,94 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   );
 }
 
+/// Pick / change / remove the channel's profile image.
+class _ChannelImagePicker extends StatelessWidget {
+  const _ChannelImagePicker({
+    required this.imageUrl,
+    required this.uploading,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final String? imageUrl;
+  final bool uploading;
+  final VoidCallback? onPick;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final has = (imageUrl ?? '').isNotEmpty;
+    return Row(
+      children: [
+        Semantics(
+          button: true,
+          label: has ? 'Change channel image' : 'Add channel image',
+          child: InkWell(
+            onTap: onPick,
+            borderRadius: BorderRadius.circular(20),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: SizedBox(
+                width: 96,
+                height: 96,
+                child: uploading
+                    ? const ColoredBox(
+                        color: AppColors.neutral100,
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      )
+                    : AppImage(
+                        imageUrl,
+                        fallback: const ColoredBox(
+                          color: AppColors.neutral100,
+                          child: Center(
+                            child: Icon(
+                              Icons.add_photo_alternate_outlined,
+                              color: AppColors.neutral500,
+                              size: 30,
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onPick,
+                icon: const Icon(Icons.upload_outlined, size: 18),
+                label: Text(has ? 'Change' : 'Upload'),
+              ),
+              if (has)
+                TextButton(
+                  onPressed: onRemove,
+                  child: const Text(
+                    'Remove',
+                    style: TextStyle(color: AppColors.neutral500),
+                  ),
+                ),
+              const Text(
+                'Shown on Browse. JPG or PNG, up to 5 MB.',
+                style: TextStyle(color: AppColors.neutral500, fontSize: 12.5),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PriceRow extends StatelessWidget {
   const _PriceRow({
     super.key,
@@ -834,6 +955,16 @@ class ChannelPreviewScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if ((account.imageURL ?? '').isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: SizedBox(
+                    height: 180,
+                    child: AppImage(account.imageURL),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               Row(
                 children: [
                   PlatformLogo(account.accountType, size: 20, color: color),

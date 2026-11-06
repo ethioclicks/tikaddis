@@ -159,11 +159,28 @@ final adminUsersByRoleProvider = FutureProvider.autoDispose
       return page.content;
     });
 
-/// Influencer accounts by approval status (admin). status: ALL/APPROVED/DISAPPROVED
+/// Key for [adminAccountsProvider]: (approval status, sort expression).
+/// Status is ALL / APPROVED / DISAPPROVED; sort is e.g. `title,asc`.
+typedef AdminAccountsQuery = (String status, String sort);
+
+/// Influencer accounts for the admin, filtered by approval status and sorted
+/// by the server (default: channel name A to Z).
 final adminAccountsProvider = FutureProvider.autoDispose
-    .family<List<InfluencerAccount>, String>((ref, approvalStatus) async {
+    .family<List<InfluencerAccount>, AdminAccountsQuery>((ref, query) async {
       final api = ref.read(apiServiceProvider);
-      final res = await api.adminAccountsByStatus(approvalStatus);
+      final res = await api.adminAccountsByStatus(query.$1, sort: query.$2);
+      final page = PageResult.fromJson<InfluencerAccount>(
+        res.data,
+        InfluencerAccount.fromJson,
+      );
+      return page.content;
+    });
+
+/// Approved channels an admin has featured (top of Browse).
+final featuredAccountsProvider =
+    FutureProvider.autoDispose<List<InfluencerAccount>>((ref) async {
+      final api = ref.read(apiServiceProvider);
+      final res = await api.getFeaturedAccounts();
       final page = PageResult.fromJson<InfluencerAccount>(
         res.data,
         InfluencerAccount.fromJson,

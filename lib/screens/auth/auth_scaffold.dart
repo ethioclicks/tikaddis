@@ -18,19 +18,6 @@ class AuthScaffold extends StatelessWidget {
     this.onBack,
   });
 
-  static const LinearGradient _headerGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [
-      AppColors.primaryHover,
-      AppColors.primary,
-      Color(0xFF6FAEFF),
-      Color(0xFFD6E8FF),
-      Colors.white,
-    ],
-    stops: [0.0, 0.22, 0.46, 0.74, 1.0],
-  );
-
   final String title;
   final String subtitle;
   final Widget child;
@@ -51,7 +38,7 @@ class AuthScaffold extends StatelessWidget {
             Container(
               height: top + 150,
               width: double.infinity,
-              decoration: const BoxDecoration(gradient: _headerGradient),
+              decoration: const BoxDecoration(gradient: AppGradients.header),
               child: Stack(
                 children: [
                   if (onBack != null)
@@ -207,6 +194,10 @@ class AuthField extends StatelessWidget {
     this.textInputAction,
     this.onSubmitted,
     this.validator,
+    this.maxLines = 1,
+    this.minLines,
+    this.maxLength,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final TextEditingController controller;
@@ -220,6 +211,10 @@ class AuthField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
   final String? Function(String?)? validator;
+  final int maxLines;
+  final int? minLines;
+  final int? maxLength;
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
@@ -242,6 +237,10 @@ class AuthField extends StatelessWidget {
           obscureText: obscure,
           keyboardType: keyboardType,
           textInputAction: textInputAction,
+          textCapitalization: textCapitalization,
+          maxLines: obscure ? 1 : maxLines,
+          minLines: obscure ? 1 : minLines,
+          maxLength: maxLength,
           onFieldSubmitted: onSubmitted,
           validator: validator,
           style: const TextStyle(

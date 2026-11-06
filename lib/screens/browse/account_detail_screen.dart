@@ -7,6 +7,8 @@ import '../../core/links.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/app_image.dart';
+import '../../widgets/creator_profile_card.dart';
 
 class AccountDetailScreen extends ConsumerWidget {
   final String accountId; // accountPublicId
@@ -102,6 +104,20 @@ class _Detail extends StatelessWidget {
                           post: account.weeklyTopViewedPost!,
                           color: pColor,
                         ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    if (account.creator != null &&
+                        !account.creator!.isEmpty) ...[
+                      const _SectionTitle('About the creator'),
+                      const SizedBox(height: 12),
+                      CreatorProfileCard(
+                        name: account.creator!.name ?? 'Creator',
+                        headline: account.creator!.headline,
+                        biography: account.creator!.biography,
+                        avatarUrl: account.creator!.profileImageUrl,
+                        gallery: account.creator!.galleryImages,
+                      ),
                       const SizedBox(height: 24),
                     ],
 
@@ -208,7 +224,7 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = account.imageURL ?? '';
+    final url = mediaUrl(account.imageURL) ?? '';
     return SizedBox(
       height: 340,
       width: double.infinity,

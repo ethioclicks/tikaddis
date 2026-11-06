@@ -423,18 +423,56 @@ class ApiService {
     options: Options(headers: {'pid': adminPid}),
   );
 
+  /// [sort] is a Spring sort expression, e.g. `title,asc` or `id,desc`.
   Future<Response> adminAccountsByStatus(
     String approvalStatus, {
     int page = 0,
-    int size = 30,
+    int size = 100,
+    String sort = 'title,asc',
   }) => _dio.get(
     '/admin/account-list-by-approval-status',
     queryParameters: {
       'approvalStatus': approvalStatus,
       'page': page,
       'size': size,
+      'sort': sort,
     },
   );
+
+  /// Features or un-features an approved channel (admin only).
+  Future<Response> adminFeatureAccount(
+    String accountPublicId,
+    bool featured,
+  ) => _dio.post(
+    '/admin/feature-account',
+    queryParameters: {'featured': featured},
+    options: Options(headers: {'accountPublicId': accountPublicId}),
+  );
+
+  /// Channels an admin has featured (shown at the top of Browse).
+  Future<Response> getFeaturedAccounts({int page = 0, int size = 10}) =>
+      _dio.get(
+        '/influencer/get-featured-influencer-accounts',
+        queryParameters: {'page': page, 'size': size},
+      );
+
+  /// Uploads a JPG/PNG (max 5 MB). Returns `{id, url, ...}`; `url` is a path
+  /// such as `/public/images/<id>` that can be stored on a profile or channel.
+  Future<Response> uploadImage(List<int> bytes, String filename) =>
+      _dio.post(
+        '/account/images',
+        data: FormData.fromMap({
+          'file': MultipartFile.fromBytes(bytes, filename: filename),
+        }),
+        options: Options(
+          contentType: 'multipart/form-data',
+          sendTimeout: const Duration(minutes: 2),
+        ),
+      );
+
+  /// Updates the signed-in user's profile. Only the keys present are changed.
+  Future<Response> updateProfile(String pid, Map<String, dynamic> data) =>
+      _dio.post('/user', data: data, options: Options(headers: {'pid': pid}));
 
   Future<Response> adminPromotionList({
     String? status,

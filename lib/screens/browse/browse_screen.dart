@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/app_image.dart';
 import '../../widgets/platform_logo.dart';
 
 /// Creator discovery — editorial: bold headline, tab filters, a large
@@ -51,7 +52,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       backgroundColor: Colors.white,
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () async => ref.invalidate(approvedAccountsProvider),
+        onRefresh: () async {
+          ref.invalidate(approvedAccountsProvider);
+          ref.invalidate(featuredAccountsProvider);
+        },
         child: accounts.when(
           loading: () => const LoadingView(),
           error: (e, _) => ErrorView(
@@ -64,8 +68,14 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           ),
           data: (all) {
             final sorted = _sorted(all);
-            // Featured rail: top few from the current tab.
-            final featured = sorted.take(5).toList();
+            // Featured rail: only the channels an admin has featured. While it
+            // loads or if it fails, the rail is simply hidden.
+            final featured = ref
+                .watch(featuredAccountsProvider)
+                .maybeWhen(
+                  data: (l) => l,
+                  orElse: () => const <InfluencerAccount>[],
+                );
             // The list below respects the search query.
             final q = _query.trim().toLowerCase();
             final rows = q.isEmpty
@@ -199,9 +209,10 @@ class _Photo extends StatelessWidget {
           alignment: Alignment.center,
           child: Icon(icon, color: color, size: 48),
         );
-    if ((url ?? '').isEmpty) return fallback();
+    final resolved = mediaUrl(url);
+    if (resolved == null) return fallback();
     return Image.network(
-      url!,
+      resolved,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stack) => fallback(),
       loadingBuilder: (context, child, progress) {
@@ -529,7 +540,7 @@ class _CreatorRow extends StatelessWidget {
                     color: pColor.withValues(alpha: 0.10),
                     image: hasImage
                         ? DecorationImage(
-                            image: NetworkImage(account.imageURL!),
+                            image: NetworkImage(mediaUrl(account.imageURL)!),
                             fit: BoxFit.cover,
                           )
                         : null,

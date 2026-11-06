@@ -31,6 +31,36 @@ class AppColors {
   static const Color neutral50 = Color(0xFFFAFAFA);
 }
 
+/// Shared blue -> white gradients used for screen headers.
+class AppGradients {
+  AppGradients._();
+
+  static const List<Color> _blueToWhite = [
+    AppColors.primaryHover,
+    AppColors.primary,
+    Color(0xFF6FAEFF),
+    Color(0xFFD6E8FF),
+    Colors.white,
+  ];
+
+  /// Compact header (auth screens): fades to white quickly.
+  static const LinearGradient header = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: _blueToWhite,
+    stops: [0.0, 0.22, 0.46, 0.74, 1.0],
+  );
+
+  /// Hero header (home): stays deep blue longer so white text keeps good
+  /// contrast, then fades into the white page.
+  static const LinearGradient hero = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: _blueToWhite,
+    stops: [0.0, 0.38, 0.62, 0.86, 1.0],
+  );
+}
+
 class AppTheme {
   AppTheme._();
 
