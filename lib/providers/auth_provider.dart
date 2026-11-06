@@ -39,6 +39,11 @@ class AuthState {
   bool get isLoggedIn => token != null;
   bool get isInfluencer => roles.contains('INFLUENCER');
   bool get isAdmin => roles.contains('ADMIN');
+  bool get isCandidate => roles.contains('CANDIDATE');
+
+  /// Creators (approved or pending) have a Home with their public profile.
+  /// Plain members have no Home: they start on Browse.
+  bool get hasCreatorHome => isInfluencer || isCandidate;
 
   String get displayName =>
       [firstName, lastName].where((e) => (e ?? '').isNotEmpty).join(' ').trim();

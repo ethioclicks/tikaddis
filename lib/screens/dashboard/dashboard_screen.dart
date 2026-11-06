@@ -13,6 +13,7 @@ import '../../widgets/brand_mark.dart';
 import '../../widgets/creator_profile_card.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/platform_logo.dart';
+import '../../widgets/shimmer.dart';
 import '../../widgets/sparkle.dart';
 
 const Color _ink = Color(0xFF111111);
@@ -25,9 +26,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
     final myPromos = ref.watch(myPromotionsProvider(null));
-    final isCreator = auth.isInfluencer || auth.roles.contains('CANDIDATE');
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -51,28 +50,9 @@ class DashboardScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Creators see their public profile, LinkedIn style;
-                      // everyone else sees their promotion numbers.
-                      if (isCreator)
-                        const _CreatorSection()
-                      else
-                        _StatsRow(
-                          total: myPromos.maybeWhen(
-                            data: (l) => l.length,
-                            orElse: () => null,
-                          ),
-                          running: myPromos.maybeWhen(
-                            data: (l) => l
-                                .where(
-                                  (p) =>
-                                      p.status?.wire == 'RUNNING' ||
-                                      p.status?.wire ==
-                                          'ACCOUNT_OWNER_APPROVED',
-                                )
-                                .length,
-                            orElse: () => null,
-                          ),
-                        ),
+                      // Home is for creators: their public profile, LinkedIn
+                      // style. Members start on Browse instead.
+                      const _CreatorSection(),
                       const SizedBox(height: 24),
                       _RecentPromotions(async: myPromos),
                       const SizedBox(height: 90), // clear floating nav
@@ -134,37 +114,6 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.total, required this.running});
-  final int? total;
-  final int? running;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            value: total?.toString() ?? '—',
-            label: 'Promotions',
-            icon: Icons.campaign_outlined,
-            tint: AppColors.primary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            value: running?.toString() ?? '—',
-            label: 'Active',
-            icon: Icons.bolt_outlined,
-            tint: AppColors.accent,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -357,8 +306,10 @@ class _CreatorSection extends ConsumerWidget {
     );
     final audience = list.fold<int>(0, (sum, c) => sum + c.audienceCount);
 
-    // Two headline numbers on top.
-    final statsRow = Row(
+    // Two headline numbers on top. While the channels first load, show a
+    // shimmer instead of misleading zeros (a refresh keeps the old numbers).
+    final statsLoading = channels.isLoading && !channels.hasValue;
+    final statsRow = statsLoading ? const _StatsSkeleton() : Row(
       children: [
         Expanded(
           child: _StatCard(
@@ -497,10 +448,7 @@ class _CreatorSection extends ConsumerWidget {
           const _SectionTitle('Your channels'),
           const SizedBox(height: 12),
           channels.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
+            loading: () => const _ChannelRowSkeleton(),
             error: (e, _) => const Text(
               'Could not load your channels.',
               style: TextStyle(color: AppColors.neutral500),
@@ -625,26 +573,190 @@ class _StatusChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[Icon(icon, size: 14, color: fg), const SizedBox(width: 4)],
-        Text(
-          text,
-          style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     ),
   );
 }
 
+/// Shimmering placeholder with the same layout and size as the profile card.
 class _ProfileSkeleton extends StatelessWidget {
   const _ProfileSkeleton();
 
   @override
-  Widget build(BuildContext context) => Container(
-    height: 280,
-    decoration: BoxDecoration(
-      color: AppColors.neutral100,
-      borderRadius: BorderRadius.circular(24),
+  Widget build(BuildContext context) {
+    const light = kSkeletonLight;
+    return Semantics(
+      label: 'Loading your profile',
+      child: ExcludeSemantics(
+        child: Shimmer(
+          child: Container(
+            height: 356,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: kSkeletonBase,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Photo, name, badge, edit button.
+                Row(
+                  children: const [
+                    SkeletonBox(width: 78, height: 78, circle: true),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBox(width: 150, height: 22, radius: 8),
+                          SizedBox(height: 10),
+                          SkeletonBox(width: 92, height: 28, radius: 14),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    SkeletonBox(width: 40, height: 40, circle: true),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Tags.
+                const Row(
+                  children: [
+                    SkeletonBox(width: 104, height: 36, radius: 18),
+                    SizedBox(width: 8),
+                    SkeletonBox(width: 128, height: 36, radius: 18),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(height: 1, thickness: 1, color: light),
+                const SizedBox(height: 14),
+                // Stats.
+                const Row(
+                  children: [
+                    Expanded(child: _StatPlaceholder()),
+                    Expanded(child: _StatPlaceholder()),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(height: 1, thickness: 1, color: light),
+                const SizedBox(height: 16),
+                // About.
+                const SkeletonBox(width: 64, height: 16, radius: 6),
+                const SizedBox(height: 10),
+                const SkeletonBox(height: 14, radius: 6),
+                const SizedBox(height: 8),
+                const SkeletonBox(width: 200, height: 14, radius: 6),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatPlaceholder extends StatelessWidget {
+  const _StatPlaceholder();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+    children: [
+      SkeletonBox(width: 76, height: 24, radius: 8),
+      SizedBox(height: 8),
+      SkeletonBox(width: 58, height: 12, radius: 6),
+    ],
+  );
+}
+
+/// Shimmering placeholder for the two stat cards (same size as the real ones).
+class _StatsSkeleton extends StatelessWidget {
+  const _StatsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card() => Expanded(
+      child: Container(
+        height: 150,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryHover.withValues(alpha: 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SkeletonBox(width: 38, height: 38, circle: true, color: kSkeletonBase),
+            Spacer(),
+            SkeletonBox(width: 64, height: 30, radius: 8, color: kSkeletonBase),
+            SizedBox(height: 10),
+            SkeletonBox(width: 96, height: 14, radius: 6, color: kSkeletonBase),
+          ],
+        ),
+      ),
+    );
+
+    return Semantics(
+      label: 'Loading your numbers',
+      child: ExcludeSemantics(
+        child: Shimmer(
+          child: Row(children: [card(), const SizedBox(width: 12), card()]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholder for one channel row.
+class _ChannelRowSkeleton extends StatelessWidget {
+  const _ChannelRowSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Loading your channels',
+    child: ExcludeSemantics(
+      child: Shimmer(
+        child: Container(
+          height: 70,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: kSkeletonBase,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Row(
+            children: [
+              SkeletonBox(width: 46, height: 46, radius: 12),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 120, height: 15, radius: 6),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 170, height: 12, radius: 6),
+                  ],
+                ),
+              ),
+              SkeletonBox(width: 70, height: 26, radius: 13),
+            ],
+          ),
+        ),
+      ),
     ),
-    alignment: Alignment.center,
-    child: const CircularProgressIndicator(strokeWidth: 2),
   );
 }

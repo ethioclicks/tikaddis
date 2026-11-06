@@ -75,8 +75,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (atEntry || atAuthScreen || !inAdminArea) return '/admin';
         return null;
       } else {
-        if (inAdminArea) return '/dashboard';
-        if (atEntry || atAuthScreen) return '/dashboard';
+        // Creators land on Home (their profile); plain members on Browse.
+        final home = auth.hasCreatorHome ? '/dashboard' : '/browse';
+        if (inAdminArea) return home;
+        if (atEntry || atAuthScreen) return home;
+        if (location == '/dashboard' && !auth.hasCreatorHome) return home;
         return null;
       }
     },

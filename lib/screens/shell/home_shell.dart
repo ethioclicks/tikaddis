@@ -22,26 +22,39 @@ class HomeShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isInfluencer = ref.watch(authProvider).isInfluencer;
+    final auth = ref.watch(authProvider);
+    final isInfluencer = auth.isInfluencer;
 
-    final items = [
-      const _NavItem(Icons.home_rounded, 'Home'),
-      isInfluencer
-          ? const _NavItem(Icons.storefront_rounded, 'Channels')
-          : const _NavItem(Icons.explore_rounded, 'Browse'),
-      isInfluencer
-          ? const _NavItem(Icons.inbox_rounded, 'Requests')
-          : const _NavItem(Icons.campaign_rounded, 'Promotions'),
-      const _NavItem(Icons.person_rounded, 'Profile'),
+    // Each tab maps to a fixed route branch (0 Home, 1 Browse/Channels,
+    // 2 Promotions/Requests, 3 Profile). Plain members have no Home tab.
+    final tabs = <({int branch, _NavItem item})>[
+      if (auth.hasCreatorHome)
+        (branch: 0, item: const _NavItem(Icons.home_rounded, 'Home')),
+      (
+        branch: 1,
+        item: isInfluencer
+            ? const _NavItem(Icons.storefront_rounded, 'Channels')
+            : const _NavItem(Icons.explore_rounded, 'Browse'),
+      ),
+      (
+        branch: 2,
+        item: isInfluencer
+            ? const _NavItem(Icons.inbox_rounded, 'Requests')
+            : const _NavItem(Icons.campaign_rounded, 'Promotions'),
+      ),
+      (branch: 3, item: const _NavItem(Icons.person_rounded, 'Profile')),
     ];
+    final selected = tabs.indexWhere(
+      (t) => t.branch == navigationShell.currentIndex,
+    );
 
     return Scaffold(
       extendBody: true,
       body: navigationShell,
       bottomNavigationBar: _FloatingNavBar(
-        items: items,
-        currentIndex: navigationShell.currentIndex,
-        onTap: _goBranch,
+        items: [for (final t in tabs) t.item],
+        currentIndex: selected < 0 ? 0 : selected,
+        onTap: (i) => _goBranch(tabs[i].branch),
       ),
     );
   }
