@@ -2,6 +2,7 @@ import '../../widgets/app_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
@@ -213,14 +214,22 @@ class _UserCardState extends ConsumerState<_UserCard> {
     final name = u.fullName.isNotEmpty ? u.fullName : (u.userName ?? 'User');
     final initials = _initials(u);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final id = u.userPublicId;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: Column(
+        // Opens the full application: profile, contact details and channels.
+        onTap: id == null ? null : () => context.push('/admin/user/$id'),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.neutral200),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -293,6 +302,8 @@ class _UserCardState extends ConsumerState<_UserCard> {
               ),
           ],
         ],
+          ),
+        ),
       ),
     );
   }

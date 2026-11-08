@@ -15,7 +15,7 @@ import '../../widgets/sparkle.dart';
 const Color _ink = Color(0xFF111111);
 
 /// Height of one creator card in the grid (same as the Browse rail).
-const double _cardHeight = 214;
+const double _cardHeight = 160;
 
 /// Every creator (the people behind the channels), searchable by name or
 /// headline. Opened from "View all" on Browse.
@@ -75,7 +75,7 @@ class _CreatorsScreenState extends ConsumerState<CreatorsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           sliver: SliverGrid.builder(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
+              crossAxisCount: 3,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               mainAxisExtent: _cardHeight,
@@ -227,9 +227,20 @@ class _Header extends StatelessWidget {
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: EdgeInsets.symmetric(vertical: 18),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
+                      // Rounded like the container, so the white fill does
+                      // not show square corners.
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
                 ),
@@ -251,20 +262,20 @@ class _GridSkeleton extends StatelessWidget {
     Widget card() => Expanded(
       child: Container(
         height: _cardHeight,
-        padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
         decoration: BoxDecoration(
           color: kSkeletonBase,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: const Column(
           children: [
-            SkeletonBox(width: 68, height: 68, circle: true),
-            SizedBox(height: 12),
-            SkeletonBox(width: 100, height: 15, radius: 6),
+            SkeletonBox(width: 52, height: 52, circle: true),
             SizedBox(height: 8),
-            SkeletonBox(width: 120, height: 12, radius: 6),
+            SkeletonBox(width: 90, height: 14, radius: 6),
+            SizedBox(height: 6),
+            SkeletonBox(width: 100, height: 11, radius: 6),
             Spacer(),
-            SkeletonBox(width: 90, height: 24, radius: 12),
+            SkeletonBox(width: 80, height: 22, radius: 11),
           ],
         ),
       ),
@@ -279,7 +290,15 @@ class _GridSkeleton extends StatelessWidget {
             child: Column(
               children: [
                 for (var i = 0; i < 3; i++) ...[
-                  Row(children: [card(), const SizedBox(width: 12), card()]),
+                  Row(
+                    children: [
+                      card(),
+                      const SizedBox(width: 12),
+                      card(),
+                      const SizedBox(width: 12),
+                      card(),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                 ],
               ],

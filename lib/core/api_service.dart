@@ -459,6 +459,10 @@ class ApiService {
   /// Creators who run approved channels, with their public profile.
   Future<Response> getCreators() => _dio.get('/influencer/get-creators');
 
+  /// One user's contact details, creator profile and channels (admin only).
+  Future<Response> adminUserDetail(String userPublicId) =>
+      _dio.get('/admin/user/${Uri.encodeComponent(userPublicId)}');
+
   /// One creator's public profile and approved channels.
   Future<Response> getCreator(String userPublicId) =>
       _dio.get('/influencer/get-creator/${Uri.encodeComponent(userPublicId)}');

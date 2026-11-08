@@ -11,7 +11,7 @@ const Color _ink = Color(0xFF111111);
 /// A creator (the person, not a channel) as a soft grey card: photo, name,
 /// headline and a channel / audience pill. Opens their full profile.
 class CreatorPersonCard extends StatelessWidget {
-  const CreatorPersonCard({super.key, required this.creator, this.width = 164});
+  const CreatorPersonCard({super.key, required this.creator, this.width = 136});
 
   final CreatorCard creator;
 
@@ -30,9 +30,9 @@ class CreatorPersonCard extends StatelessWidget {
       width: width,
       child: Material(
         color: AppColors.neutral100,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           onTap: creator.userPublicId != null
               ? () => context.push(
                   '/creator/${Uri.encodeComponent(creator.userPublicId!)}',
@@ -41,11 +41,11 @@ class CreatorPersonCard extends StatelessWidget {
               ? null
               : () => context.push('/browse-detail/${creator.accountPublicId}'),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+            padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
             child: Column(
               children: [
-                Avatar(url: creator.profileImageUrl, name: name, size: 68),
-                const SizedBox(height: 12),
+                Avatar(url: creator.profileImageUrl, name: name, size: 52),
+                const SizedBox(height: 8),
                 Text(
                   name,
                   maxLines: 1,
@@ -53,28 +53,28 @@ class CreatorPersonCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: _ink,
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   headline.isEmpty ? 'Creator on Tikaddis' : headline,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppColors.neutral500,
-                    fontSize: 12.5,
+                    fontSize: 12,
                     height: 1.3,
                   ),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
+                    horizontal: 9,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -88,7 +88,7 @@ class CreatorPersonCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: _ink,
-                      fontSize: 11.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

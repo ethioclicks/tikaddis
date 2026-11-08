@@ -201,6 +201,13 @@ final creatorsProvider = FutureProvider.autoDispose<List<CreatorCard>>((
       .toList();
 });
 
+/// One user as an admin reviews them (the applicant detail page).
+final adminUserDetailProvider = FutureProvider.autoDispose
+    .family<AdminUserDetail, String>((ref, userPublicId) async {
+      final res = await ref.read(apiServiceProvider).adminUserDetail(userPublicId);
+      return AdminUserDetail.fromJson(Map<String, dynamic>.from(res.data as Map));
+    });
+
 /// One creator's full public profile (the creator profile page).
 final creatorProfileProvider = FutureProvider.autoDispose
     .family<CreatorProfile, String>((ref, userPublicId) async {

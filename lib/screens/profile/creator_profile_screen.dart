@@ -129,6 +129,10 @@ class _CreatorProfileScreenState extends ConsumerState<CreatorProfileScreen> {
         final message = await ref
             .read(authProvider.notifier)
             .becomeInfluencer();
+        // Applying changes the account's roles, which makes the router
+        // refresh. Popping in the same frame lets that refresh put this
+        // screen back on top, so wait for it to finish first.
+        await WidgetsBinding.instance.endOfFrame;
         if (!mounted) return;
         AppToast.success(context, message);
       } else {

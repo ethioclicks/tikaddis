@@ -618,3 +618,79 @@ class CreatorProfile {
         const [],
   );
 }
+
+/// One user as an admin reviews them (GET /admin/user/{id}): contact details,
+/// account state, the creator profile they wrote and their channels.
+class AdminUserDetail {
+  final String? userPublicId;
+  final String? firstName;
+  final String? lastName;
+  final String? phone;
+  final String? email;
+  final List<String> roles;
+  final bool enabled;
+  final bool locked;
+  final DateTime? createdOn;
+  final String? headline;
+  final String? biography;
+  final String? profileImageUrl;
+  final List<String> galleryImages;
+  final List<InfluencerAccount> channels;
+
+  const AdminUserDetail({
+    this.userPublicId,
+    this.firstName,
+    this.lastName,
+    this.phone,
+    this.email,
+    this.roles = const [],
+    this.enabled = true,
+    this.locked = false,
+    this.createdOn,
+    this.headline,
+    this.biography,
+    this.profileImageUrl,
+    this.galleryImages = const [],
+    this.channels = const [],
+  });
+
+  String get fullName =>
+      [firstName, lastName].where((e) => (e ?? '').isNotEmpty).join(' ').trim();
+
+  bool get isCandidate => roles.contains('CANDIDATE');
+  bool get isInfluencer => roles.contains('INFLUENCER');
+  bool get isAdmin => roles.contains('ADMIN');
+
+  /// True once the applicant wrote anything for their creator profile.
+  bool get hasProfile =>
+      (headline ?? '').isNotEmpty ||
+      (biography ?? '').isNotEmpty ||
+      (profileImageUrl ?? '').isNotEmpty ||
+      galleryImages.isNotEmpty;
+
+  factory AdminUserDetail.fromJson(Map<String, dynamic> j) => AdminUserDetail(
+    userPublicId: j['userPublicId'] as String?,
+    firstName: j['firstName'] as String?,
+    lastName: j['lastName'] as String?,
+    phone: j['phone'] as String?,
+    email: j['email'] as String?,
+    roles: (j['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+    enabled: j['enabled'] as bool? ?? true,
+    locked: j['locked'] as bool? ?? false,
+    createdOn: j['createdOn'] == null
+        ? null
+        : DateTime.tryParse(j['createdOn'].toString()),
+    headline: j['headline'] as String?,
+    biography: j['biography'] as String?,
+    profileImageUrl: j['profileImageUrl'] as String?,
+    galleryImages:
+        (j['galleryImages'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+    channels:
+        (j['channels'] as List?)
+            ?.whereType<Map>()
+            .map((e) => InfluencerAccount.fromJson(Map<String, dynamic>.from(e)))
+            .toList() ??
+        const [],
+  );
+}

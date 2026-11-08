@@ -240,7 +240,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       ),
       const SizedBox(height: 12),
       SizedBox(
-        height: 214,
+        height: 168,
         child: loading
             ? ListView(
                 scrollDirection: Axis.horizontal,
@@ -791,21 +791,21 @@ class _CreatorProfileSkeleton extends StatelessWidget {
     child: ExcludeSemantics(
       child: Shimmer(
         child: Container(
-          width: 164,
-          padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+          width: 136,
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
           decoration: BoxDecoration(
             color: kSkeletonBase,
             borderRadius: BorderRadius.circular(24),
           ),
           child: const Column(
             children: [
-              SkeletonBox(width: 68, height: 68, circle: true),
-              SizedBox(height: 12),
-              SkeletonBox(width: 100, height: 15, radius: 6),
+              SkeletonBox(width: 52, height: 52, circle: true),
               SizedBox(height: 8),
-              SkeletonBox(width: 120, height: 12, radius: 6),
+              SkeletonBox(width: 90, height: 14, radius: 6),
+              SizedBox(height: 6),
+              SkeletonBox(width: 100, height: 11, radius: 6),
               Spacer(),
-              SkeletonBox(width: 90, height: 24, radius: 12),
+              SkeletonBox(width: 80, height: 22, radius: 11),
             ],
           ),
         ),

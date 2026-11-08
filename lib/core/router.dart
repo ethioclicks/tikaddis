@@ -23,6 +23,7 @@ import '../screens/notifications/notification_promotion_screen.dart';
 import '../screens/shell/home_shell.dart';
 import '../screens/admin/admin_shell.dart';
 import '../screens/admin/admin_channel_detail_screen.dart';
+import '../screens/admin/admin_user_detail_screen.dart';
 import '../screens/admin/admin_channel_options_screen.dart';
 import '../screens/profile/creator_profile_screen.dart';
 import '../screens/browse/creator_public_screen.dart';
@@ -214,6 +215,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootKey,
         path: '/admin/channel-options',
         builder: (context, state) => const AdminChannelOptionsScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/admin/user/:userId',
+        builder: (context, state) =>
+            AdminUserDetailScreen(userId: state.pathParameters['userId']!),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
