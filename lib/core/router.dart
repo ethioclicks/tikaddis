@@ -26,6 +26,7 @@ import '../screens/admin/admin_channel_detail_screen.dart';
 import '../screens/admin/admin_channel_options_screen.dart';
 import '../screens/profile/creator_profile_screen.dart';
 import '../screens/browse/creator_public_screen.dart';
+import '../screens/browse/creators_screen.dart';
 import '../screens/admin/admin_overview_screen.dart';
 import '../screens/admin/admin_channels_screen.dart';
 import '../screens/admin/admin_promotions_screen.dart';
@@ -227,6 +228,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => CreatorProfileScreen(
           apply: state.uri.queryParameters['apply'] == '1',
         ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/creators',
+        builder: (context, state) => const CreatorsScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
