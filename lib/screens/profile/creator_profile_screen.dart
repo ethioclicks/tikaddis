@@ -177,6 +177,7 @@ class _CreatorProfileScreenState extends ConsumerState<CreatorProfileScreen> {
     final name = ref.watch(authProvider).displayName;
 
     return AuthScaffold(
+      titleInHeader: true,
       title: widget.apply ? 'Build your creator profile' : 'Edit your profile',
       subtitle: widget.apply
           ? 'This is what brands see before they work with you.'

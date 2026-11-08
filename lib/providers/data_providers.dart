@@ -188,6 +188,26 @@ final featuredAccountsProvider =
       return page.content;
     });
 
+/// Creators who run approved channels (the "Creator profiles" rail on Browse).
+final creatorsProvider = FutureProvider.autoDispose<List<CreatorCard>>((
+  ref,
+) async {
+  final res = await ref.read(apiServiceProvider).getCreators();
+  final data = res.data;
+  if (data is! List) return const <CreatorCard>[];
+  return data
+      .whereType<Map>()
+      .map((e) => CreatorCard.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+});
+
+/// One creator's full public profile (the creator profile page).
+final creatorProfileProvider = FutureProvider.autoDispose
+    .family<CreatorProfile, String>((ref, userPublicId) async {
+      final res = await ref.read(apiServiceProvider).getCreator(userPublicId);
+      return CreatorProfile.fromJson(Map<String, dynamic>.from(res.data as Map));
+    });
+
 /// All promotion requests (admin), optional status filter.
 final adminPromotionsProvider = FutureProvider.autoDispose
     .family<List<PromotionRequest>, String?>((ref, status) async {

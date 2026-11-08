@@ -7,8 +7,9 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/creator_profile_card.dart';
 import '../../widgets/dots_loading.dart';
-import '../../widgets/hex_pattern.dart';
+import '../../widgets/shimmer.dart';
 import '../../widgets/delete_account_dialog.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -42,7 +43,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           Expanded(
             child: profile.when(
-              loading: () => const LoadingView(),
+              loading: () => const _ProfileSkeleton(),
               error: (e, _) => ErrorView(
                 message: 'Could not load your profile.',
                 onRetry: () => ref.invalidate(profileProvider),
@@ -63,6 +64,102 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholder with the same layout as the loaded profile:
+/// account card, then the details, notifications and session sections.
+class _ProfileSkeleton extends StatelessWidget {
+  const _ProfileSkeleton();
+
+  Widget _label() => const SkeletonBox(
+    width: 110,
+    height: 12,
+    radius: 6,
+    color: kSkeletonBase,
+  );
+
+  Widget _row({bool last = false}) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    decoration: BoxDecoration(
+      border: last
+          ? null
+          : const Border(bottom: BorderSide(color: AppColors.neutral200)),
+    ),
+    child: const Row(
+      children: [
+        SkeletonBox(width: 26, height: 26, radius: 8, color: kSkeletonBase),
+        SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 90, height: 16, radius: 6, color: kSkeletonBase),
+              SizedBox(height: 7),
+              SkeletonBox(width: 160, height: 13, radius: 6, color: kSkeletonBase),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Loading your profile',
+      child: ExcludeSemantics(
+        child: Shimmer(
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+            children: [
+              // Account card (avatar, name, role chips).
+              Container(
+                height: 114,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                decoration: BoxDecoration(
+                  color: kSkeletonBase,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: const Row(
+                  children: [
+                    SkeletonBox(width: 78, height: 78, circle: true),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBox(width: 140, height: 22, radius: 8),
+                          SizedBox(height: 10),
+                          SkeletonBox(width: 86, height: 26, radius: 13),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _label(),
+              const SizedBox(height: 10),
+              _row(),
+              _row(),
+              _row(last: true),
+              const SizedBox(height: 24),
+              _label(),
+              const SizedBox(height: 10),
+              _row(last: true),
+              const SizedBox(height: 24),
+              _label(),
+              const SizedBox(height: 10),
+              _row(),
+              _row(last: true),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -106,7 +203,6 @@ class _ProfileBody extends ConsumerWidget {
     final name = profile.fullName.isNotEmpty
         ? profile.fullName
         : 'Your account';
-    final initials = _initials(profile);
     // Watch auth LIVE so applying to be an influencer updates this screen
     // immediately (roles change -> rebuild), no app restart needed.
     final auth = ref.watch(authProvider);
@@ -116,8 +212,24 @@ class _ProfileBody extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       children: [
-        // Prominent account card.
-        _AccountCard(name: name, initials: initials, roles: auth.roles),
+        // The same profile card creators see on Home. Creators also get their
+        // headline, bio and photos plus an edit button; members just get
+        // their photo, name and role.
+        CreatorProfileCard(
+          name: name,
+          headline: auth.hasCreatorHome ? profile.headline : null,
+          biography: profile.biography,
+          avatarUrl: profile.profileImageUrl,
+          gallery: auth.hasCreatorHome ? profile.galleryImages : const [],
+          style: CreatorCardStyle.gradient,
+          badge: _RoleBadge(auth: auth),
+          showAbout: auth.hasCreatorHome,
+          onEdit: auth.hasCreatorHome
+              ? () => context.push('/creator-profile')
+              : null,
+          emptyHint:
+              'Add a short biography so brands know who you are. Tap Edit.',
+        ),
         const SizedBox(height: 24),
 
         // Become influencer CTA (hidden for existing influencers).
@@ -159,27 +271,19 @@ class _ProfileBody extends ConsumerWidget {
           ],
         ),
 
-        if (auth.isInfluencer || isCandidate) ...[
+        if (auth.isInfluencer) ...[
           const SizedBox(height: 24),
           const _SectionLabel('Creator'),
           const SizedBox(height: 10),
           _SectionCard(
             children: [
               _ActionRow(
-                icon: Icons.badge_outlined,
-                title: 'Creator profile',
-                subtitle: 'Edit your bio, photo and gallery',
-                onTap: () => context.push('/creator-profile'),
-                last: !auth.isInfluencer,
+                icon: Icons.storefront_outlined,
+                title: 'Creator space',
+                subtitle: 'Manage channels and incoming requests',
+                onTap: () => context.go('/browse'),
+                last: true,
               ),
-              if (auth.isInfluencer)
-                _ActionRow(
-                  icon: Icons.storefront_outlined,
-                  title: 'Creator space',
-                  subtitle: 'Manage channels and incoming requests',
-                  onTap: () => context.go('/browse'),
-                  last: true,
-                ),
             ],
           ),
         ],
@@ -223,60 +327,53 @@ class _ProfileBody extends ConsumerWidget {
     );
   }
 
-  String _initials(UserProfile p) {
-    final f = (p.firstName ?? '').trim();
-    final l = (p.lastName ?? '').trim();
-    final a = f.isNotEmpty ? f[0] : '';
-    final b = l.isNotEmpty ? l[0] : '';
-    final res = (a + b).toUpperCase();
-    return res.isEmpty ? 'U' : res;
-  }
 }
 
-class _RoleChips extends StatelessWidget {
-  const _RoleChips({required this.roles});
-  final List<String> roles;
-
-  String _label(String r) {
-    switch (r) {
-      case 'INFLUENCER':
-        return 'Influencer';
-      case 'CANDIDATE':
-        return 'Influencer (pending)';
-      case 'ADMIN':
-        return 'Admin';
-      case 'USER':
-        return 'Member';
-      default:
-        return r;
-    }
-  }
+/// The role chip on the profile card: Member, Creator, Pending approval, Admin.
+class _RoleBadge extends StatelessWidget {
+  const _RoleBadge({required this.auth});
+  final AuthState auth;
 
   @override
   Widget build(BuildContext context) {
-    final shown = roles.isEmpty ? ['USER'] : roles;
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: shown
-          .map(
-            (r) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                _label(r),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+    final (text, icon, bg, fg) = auth.isAdmin
+        ? ('Admin', Icons.shield_outlined, const Color(0xFFEFF6FF), AppColors.primary)
+        : auth.isInfluencer
+        ? ('Creator', Icons.verified_rounded, const Color(0xFFEFF6FF), AppColors.primary)
+        : auth.isCandidate
+        ? (
+            'Pending approval',
+            Icons.schedule_rounded,
+            const Color(0xFFFFF7ED),
+            AppColors.accentHover,
+          )
+        : ('Member', Icons.person_outline, const Color(0xFFEFF6FF), AppColors.primary);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: fg),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: fg,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          )
-          .toList(),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -334,86 +431,6 @@ class _BecomeInfluencerCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Prominent account header card (avatar, name, role chips).
-class _AccountCard extends StatelessWidget {
-  const _AccountCard({
-    required this.name,
-    required this.initials,
-    required this.roles,
-  });
-  final String name;
-  final String initials;
-  final List<String> roles;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: HexBackground(
-        borderRadius: BorderRadius.circular(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 132),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.20),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      _RoleChips(roles: roles),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

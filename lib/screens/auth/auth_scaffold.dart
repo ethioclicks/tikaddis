@@ -16,8 +16,12 @@ class AuthScaffold extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.onBack,
+    this.titleInHeader = false,
   });
 
+  /// Show [title] in the gradient header (replacing the brand mark) instead of
+  /// above the form.
+  final bool titleInHeader;
   final String title;
   final String subtitle;
   final Widget child;
@@ -55,8 +59,24 @@ class AuthScaffold extends StatelessWidget {
                     top: top + 14,
                     left: 0,
                     right: 0,
-                    child: const Center(
-                      child: BrandMark(logoHeight: 40, fontSize: 21),
+                    child: Center(
+                      child: titleInHeader
+                          ? Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 56),
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            )
+                          : const BrandMark(logoHeight: 40, fontSize: 21),
                     ),
                   ),
                   Positioned(
@@ -96,28 +116,35 @@ class AuthScaffold extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              title,
-                              textAlign: TextAlign.left,
-                              style: const TextStyle(
-                                color: Color(0xFF111111),
-                                fontSize: 28,
-                                height: 1.2,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.6,
+                            if (!titleInHeader) ...[
+                              Text(
+                                title,
+                                textAlign: TextAlign.left,
+                                style: const TextStyle(
+                                  color: Color(0xFF111111),
+                                  fontSize: 28,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.6,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              subtitle,
-                              textAlign: TextAlign.left,
-                              style: const TextStyle(
-                                color: AppColors.neutral500,
-                                fontSize: 15,
-                                height: 1.4,
+                              const SizedBox(height: 8),
+                            ],
+                            if (subtitle.isNotEmpty) ...[
+                              Text(
+                                subtitle,
+                                textAlign: TextAlign.left,
+                                style: const TextStyle(
+                                  color: AppColors.neutral500,
+                                  fontSize: 15,
+                                  height: 1.4,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 28),
+                              const SizedBox(height: 28),
+                            ] else if (!titleInHeader)
+                              const SizedBox(height: 28)
+                            else
+                              const SizedBox(height: 20),
                             child,
                           ],
                         ),

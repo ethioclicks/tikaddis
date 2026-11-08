@@ -456,6 +456,13 @@ class ApiService {
         queryParameters: {'page': page, 'size': size},
       );
 
+  /// Creators who run approved channels, with their public profile.
+  Future<Response> getCreators() => _dio.get('/influencer/get-creators');
+
+  /// One creator's public profile and approved channels.
+  Future<Response> getCreator(String userPublicId) =>
+      _dio.get('/influencer/get-creator/${Uri.encodeComponent(userPublicId)}');
+
   /// Uploads a JPG/PNG (max 5 MB). Returns `{id, url, ...}`; `url` is a path
   /// such as `/public/images/<id>` that can be stored on a profile or channel.
   Future<Response> uploadImage(List<int> bytes, String filename) =>

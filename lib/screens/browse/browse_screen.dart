@@ -59,6 +59,12 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       orElse: () => const <InfluencerAccount>[],
     );
     final featuredLoading = featuredAsync.isLoading && !featuredAsync.hasValue;
+    final creatorsAsync = ref.watch(creatorsProvider);
+    final creators = creatorsAsync.maybeWhen(
+      data: (l) => l,
+      orElse: () => const <CreatorCard>[],
+    );
+    final creatorsLoading = creatorsAsync.isLoading && !creatorsAsync.hasValue;
     final searching = _query.trim().isNotEmpty;
 
     final content = accounts.when(
@@ -98,6 +104,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         return <Widget>[
           if (!searching && (featuredLoading || featured.isNotEmpty))
             ..._featuredSection(featured, loading: featuredLoading),
+          if (!searching && (creatorsLoading || creators.isNotEmpty))
+            ..._creatorsSection(creators, loading: creatorsLoading),
           _SectionTitle(searching ? '${rows.length} results' : 'Top creators'),
           const SizedBox(height: 12),
           if (rows.isEmpty)
@@ -123,12 +131,22 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         backgroundColor: Colors.white,
         body: RefreshIndicator(
           color: AppColors.primary,
+          // Keep the spinner up until the data is really back, then let the
+          // new list replace the old one in place (no flash to a skeleton).
           onRefresh: () async {
-            ref.invalidate(approvedAccountsProvider);
             ref.invalidate(featuredAccountsProvider);
+            ref.invalidate(creatorsProvider);
+            ref.invalidate(approvedAccountsProvider);
+            try {
+              await ref.read(approvedAccountsProvider.future);
+            } catch (_) {
+              // The error view takes over; nothing to do here.
+            }
           },
           child: ListView(
-            physics: const BouncingScrollPhysics(
+            // Pulling down never moves or stretches the page; only the refresh
+            // spinner appears over the top.
+            physics: const ClampingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
             padding: const EdgeInsets.only(bottom: 110),
@@ -185,6 +203,44 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               ),
       ),
       const SizedBox(height: 14),
+    ];
+  }
+
+  /// The "Creator profiles" title plus a horizontal rail of people (or its
+  /// shimmer). Tapping one opens their full creator profile.
+  List<Widget> _creatorsSection(
+    List<CreatorCard> items, {
+    required bool loading,
+  }) {
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20),
+        child: _SectionTitle('Creator profiles'),
+      ),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 214,
+        child: loading
+            ? ListView(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                children: [
+                  for (var i = 0; i < 3; i++) ...[
+                    const _CreatorProfileSkeleton(),
+                    const SizedBox(width: 12),
+                  ],
+                ],
+              )
+            : ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                itemCount: items.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (_, i) => _CreatorProfileCard(creator: items[i]),
+              ),
+      ),
+      const SizedBox(height: 18),
     ];
   }
 }
@@ -700,6 +756,127 @@ class _CreatorRow extends StatelessWidget {
   }
 }
 
+// ── Creator profile card (the person, not the channel) ───────────────────
+class _CreatorProfileCard extends StatelessWidget {
+  const _CreatorProfileCard({required this.creator});
+
+  final CreatorCard creator;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (creator.name ?? '').isEmpty ? 'Creator' : creator.name!;
+    final headline = (creator.headline ?? '').trim();
+    final channels = creator.channelCount == 1
+        ? '1 channel'
+        : '${creator.channelCount} channels';
+
+    return SizedBox(
+      width: 164,
+      child: Material(
+        color: AppColors.neutral100,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: creator.userPublicId != null
+              ? () => context.push(
+                  '/creator/${Uri.encodeComponent(creator.userPublicId!)}',
+                )
+              : creator.accountPublicId == null
+              ? null
+              : () => context.push('/browse-detail/${creator.accountPublicId}'),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+            child: Column(
+              children: [
+                Avatar(url: creator.profileImageUrl, name: name, size: 68),
+                const SizedBox(height: 12),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  headline.isEmpty ? 'Creator on Tikaddis' : headline,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.neutral500,
+                    fontSize: 12.5,
+                    height: 1.3,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    creator.totalAudience > 0
+                        ? '$channels · ${Fmt.compact(creator.totalAudience)}'
+                        : channels,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CreatorProfileSkeleton extends StatelessWidget {
+  const _CreatorProfileSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Loading creator profiles',
+    child: ExcludeSemantics(
+      child: Shimmer(
+        child: Container(
+          width: 164,
+          padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+          decoration: BoxDecoration(
+            color: kSkeletonBase,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: const Column(
+            children: [
+              SkeletonBox(width: 68, height: 68, circle: true),
+              SizedBox(height: 12),
+              SkeletonBox(width: 100, height: 15, radius: 6),
+              SizedBox(height: 8),
+              SkeletonBox(width: 120, height: 12, radius: 6),
+              Spacer(),
+              SkeletonBox(width: 90, height: 24, radius: 12),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
 // ── Shimmer placeholders (same sizes as the real cards) ───────────────────
 class _FeaturedSkeleton extends StatelessWidget {
   const _FeaturedSkeleton();

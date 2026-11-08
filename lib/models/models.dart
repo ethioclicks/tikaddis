@@ -148,9 +148,42 @@ class UserProfile {
   );
 }
 
+/// A creator in the Browse "Creator profiles" rail. Mirrors the backend
+/// CreatorCard: public profile fields, how many approved channels they run,
+/// and one channel to open.
+class CreatorCard {
+  final String? userPublicId;
+  final String? name;
+  final String? headline;
+  final String? profileImageUrl;
+  final int channelCount;
+  final int totalAudience;
+  final String? accountPublicId;
+
+  const CreatorCard({
+    this.userPublicId,
+    this.name,
+    this.headline,
+    this.profileImageUrl,
+    this.channelCount = 0,
+    this.totalAudience = 0,
+    this.accountPublicId,
+  });
+
+  factory CreatorCard.fromJson(Map<String, dynamic> j) => CreatorCard(
+    userPublicId: j['userPublicId'] as String?,
+    name: j['name'] as String?,
+    headline: j['headline'] as String?,
+    profileImageUrl: j['profileImageUrl'] as String?,
+    channelCount: (j['channelCount'] as num?)?.toInt() ?? 0,
+    totalAudience: (j['totalAudience'] as num?)?.toInt() ?? 0,
+    accountPublicId: j['accountPublicId'] as String?,
+  );
+}
 /// A channel owner's published creator profile, as shown on the channel page.
 /// Mirrors the backend CreatorSummary (name, headline, bio and photos only).
 class CreatorSummary {
+  final String? userPublicId;
   final String? name;
   final String? headline;
   final String? biography;
@@ -158,6 +191,7 @@ class CreatorSummary {
   final List<String> galleryImages;
 
   const CreatorSummary({
+    this.userPublicId,
     this.name,
     this.headline,
     this.biography,
@@ -172,6 +206,7 @@ class CreatorSummary {
       galleryImages.isEmpty;
 
   factory CreatorSummary.fromJson(Map<String, dynamic> j) => CreatorSummary(
+    userPublicId: j['userPublicId'] as String?,
     name: j['name'] as String?,
     headline: j['headline'] as String?,
     biography: j['biography'] as String?,
@@ -543,4 +578,43 @@ class PageResult<T> {
       last: map['last'] as bool? ?? true,
     );
   }
+}
+
+/// A creator's full public profile: their own details plus every approved
+/// channel they run. Mirrors the backend CreatorProfile.
+class CreatorProfile {
+  final String? name;
+  final String? headline;
+  final String? biography;
+  final String? profileImageUrl;
+  final List<String> galleryImages;
+  final List<InfluencerAccount> channels;
+
+  const CreatorProfile({
+    this.name,
+    this.headline,
+    this.biography,
+    this.profileImageUrl,
+    this.galleryImages = const [],
+    this.channels = const [],
+  });
+
+  int get totalAudience =>
+      channels.fold(0, (sum, c) => sum + c.audienceCount);
+
+  factory CreatorProfile.fromJson(Map<String, dynamic> j) => CreatorProfile(
+    name: j['name'] as String?,
+    headline: j['headline'] as String?,
+    biography: j['biography'] as String?,
+    profileImageUrl: j['profileImageUrl'] as String?,
+    galleryImages:
+        (j['galleryImages'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+    channels:
+        (j['channels'] as List?)
+            ?.whereType<Map>()
+            .map((e) => InfluencerAccount.fromJson(Map<String, dynamic>.from(e)))
+            .toList() ??
+        const [],
+  );
 }

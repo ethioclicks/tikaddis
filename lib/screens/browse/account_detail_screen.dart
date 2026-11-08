@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/app_image.dart';
 import '../../widgets/creator_profile_card.dart';
+import '../../widgets/shimmer.dart';
 
 class AccountDetailScreen extends ConsumerWidget {
   final String accountId; // accountPublicId
@@ -21,7 +22,7 @@ class AccountDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.neutral50,
       body: detail.when(
-        loading: () => const LoadingView(),
+        loading: () => const _DetailSkeleton(),
         error: (e, _) => ErrorView(
           message: 'Could not load this creator.',
           onRetry: () => ref.invalidate(accountDetailProvider(accountId)),
@@ -30,6 +31,168 @@ class AccountDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Shimmering placeholder with the same layout as the loaded page: hero with
+/// tags and title, the floating stats card, About / engagement / Pricing, and
+/// the bottom "Request promotion" bar. The back button stays usable.
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    const base = kSkeletonBase;
+    const light = kSkeletonLight;
+
+    final content = ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      children: [
+        // Hero: platform + category tags and the title.
+        Container(
+          height: 340,
+          width: double.infinity,
+          color: base,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+          alignment: Alignment.bottomLeft,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SkeletonBox(width: 104, height: 34, radius: 17, color: light),
+                  SizedBox(width: 8),
+                  SkeletonBox(width: 62, height: 34, radius: 17, color: light),
+                ],
+              ),
+              SizedBox(height: 14),
+              SkeletonBox(width: 230, height: 32, radius: 10, color: light),
+            ],
+          ),
+        ),
+        // Floating stats card.
+        Transform.translate(
+          offset: const Offset(0, -28),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              height: 84,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Row(
+                children: [
+                  Expanded(child: _StatPlaceholder()),
+                  Expanded(child: _StatPlaceholder()),
+                  Expanded(child: _StatPlaceholder()),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // About, engagement card, pricing.
+        Transform.translate(
+          offset: const Offset(0, -16),
+          child: const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 70, height: 20, radius: 7, color: base),
+                SizedBox(height: 12),
+                SkeletonBox(height: 14, radius: 6, color: base),
+                SizedBox(height: 8),
+                SkeletonBox(width: 220, height: 14, radius: 6, color: base),
+                SizedBox(height: 24),
+                SkeletonBox(height: 84, radius: 18, color: base),
+                SizedBox(height: 24),
+                SkeletonBox(width: 80, height: 20, radius: 7, color: base),
+                SizedBox(height: 12),
+                SkeletonBox(height: 70, radius: 18, color: base),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return Semantics(
+      label: 'Loading creator',
+      child: Stack(
+        children: [
+          ExcludeSemantics(child: Shimmer(child: content)),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 6,
+            left: 10,
+            child: _CircleButton(
+              icon: Icons.arrow_back,
+              onTap: () => context.pop(),
+            ),
+          ),
+          // Bottom bar: price and the main button.
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: ExcludeSemantics(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: AppColors.neutral200)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    child: Shimmer(
+                      child: const Row(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SkeletonBox(width: 80, height: 11, radius: 5, color: base),
+                              SizedBox(height: 6),
+                              SkeletonBox(width: 96, height: 22, radius: 7, color: base),
+                            ],
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: SkeletonBox(height: 52, radius: 16, color: base),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatPlaceholder extends StatelessWidget {
+  const _StatPlaceholder();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      SkeletonBox(width: 54, height: 20, radius: 7, color: kSkeletonBase),
+      SizedBox(height: 8),
+      SkeletonBox(width: 68, height: 12, radius: 6, color: kSkeletonBase),
+    ],
+  );
 }
 
 class _Detail extends StatelessWidget {
@@ -117,6 +280,14 @@ class _Detail extends StatelessWidget {
                         biography: account.creator!.biography,
                         avatarUrl: account.creator!.profileImageUrl,
                         gallery: account.creator!.galleryImages,
+                        ctaLabel: account.creator!.userPublicId == null
+                            ? null
+                            : 'View full profile',
+                        onCta: account.creator!.userPublicId == null
+                            ? null
+                            : () => context.push(
+                                '/creator/${Uri.encodeComponent(account.creator!.userPublicId!)}',
+                              ),
                       ),
                       const SizedBox(height: 24),
                     ],

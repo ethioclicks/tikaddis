@@ -6,15 +6,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../core/channel_address.dart';
-import '../../core/format.dart';
-import '../../core/links.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
-import '../../widgets/app_image.dart';
-import '../../widgets/dots_loading.dart';
+import '../../widgets/channel_detail_view.dart';
 import '../../widgets/image_upload.dart';
-import '../../widgets/platform_logo.dart';
+import '../auth/auth_scaffold.dart' show AuthButton, AuthScaffold;
 
 /// Create a new influencer account.
 /// Backend: POST /influencer/create-influencer-account/{categoryId}
@@ -321,16 +318,23 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     final categories = ref.watch(categoriesProvider);
     final platforms = ref.watch(platformsProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(_isEdit ? 'Edit channel' : 'Add a channel')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+    final base = Theme.of(context);
+
+    return Theme(
+      // Soft grey, borderless fields everywhere in this form, like sign-in.
+      data: base.copyWith(inputDecorationTheme: _fieldTheme(base)),
+      // The same gradient header and white sheet as Register and the creator
+      // profile screens.
+      child: AuthScaffold(
+        titleInHeader: true,
+        title: _isEdit ? 'Edit channel' : 'Add a channel',
+        subtitle: '',
+        onBack: () => context.canPop() ? context.pop() : context.go('/browse'),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
                 if (_error != null) _ErrorBanner(message: _error!),
 
                 _label('Channel image'),
@@ -505,8 +509,12 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 28),
 
+                const _SectionHeader(
+                  title: 'Audience and reach',
+                  subtitle: 'Help brands judge how far you reach.',
+                ),
                 _label('Audience count'),
                 TextFormField(
                   controller: _audience,
@@ -570,21 +578,22 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _label('Pricing'),
-                    TextButton.icon(
-                      onPressed: _submitting
-                          ? null
-                          : () => setState(
-                              () =>
-                                  _prices.add(_PriceRowData(PriceType.perView)),
-                            ),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add price'),
+                const SizedBox(height: 4),
+                _SectionHeader(
+                  title: 'Pricing',
+                  subtitle: 'What you charge for a promotion.',
+                  trailing: TextButton.icon(
+                    onPressed: _submitting
+                        ? null
+                        : () => setState(
+                            () => _prices.add(_PriceRowData(PriceType.perView)),
+                          ),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text(
+                      'Add price',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ],
+                  ),
                 ),
                 ..._prices.asMap().entries.map(
                   (e) => _PriceRow(
@@ -600,17 +609,38 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 ),
                 const SizedBox(height: 28),
 
-                ElevatedButton(
-                  onPressed: _submitting ? null : (_isEdit ? _submit : _next),
-                  child: _submitting
-                      ? const DotsLoading()
-                      : Text(_isEdit ? 'Save changes' : 'Next'),
+                AuthButton(
+                  label: _isEdit ? 'Save changes' : 'Next',
+                  loading: _submitting,
+                  onPressed: _isEdit ? _submit : _next,
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Soft grey, borderless fields that turn blue when focused (red on error).
+  static InputDecorationThemeData _fieldTheme(ThemeData base) {
+    OutlineInputBorder border(Color? color, [double width = 1.4]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: color == null
+              ? BorderSide.none
+              : BorderSide(color: color, width: width),
+        );
+    return base.inputDecorationTheme.copyWith(
+      filled: true,
+      fillColor: AppColors.neutral100,
+      hintStyle: const TextStyle(color: AppColors.neutral500, fontSize: 15),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: border(null),
+      enabledBorder: border(null),
+      disabledBorder: border(null),
+      focusedBorder: border(AppColors.primary, 1.6),
+      errorBorder: border(const Color(0xFFDC2626), 1.2),
+      focusedErrorBorder: border(const Color(0xFFDC2626), 1.6),
     );
   }
 
@@ -622,12 +652,12 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   }
 
   Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.only(left: 2, bottom: 8),
     child: Text(
       text,
       style: const TextStyle(
-        color: AppColors.neutral900,
-        fontSize: 14.5,
+        color: AppColors.neutral700,
+        fontSize: 13.5,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -651,70 +681,69 @@ class _ChannelImagePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final has = (imageUrl ?? '').isNotEmpty;
-    return Row(
+    final busy = onPick == null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Semantics(
-          button: true,
-          label: has ? 'Change channel image' : 'Add channel image',
-          child: InkWell(
-            onTap: onPick,
-            borderRadius: BorderRadius.circular(20),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+        Row(
+          children: [
+            Expanded(
               child: SizedBox(
-                width: 96,
-                height: 96,
-                child: uploading
-                    ? const ColoredBox(
-                        color: AppColors.neutral100,
-                        child: Center(
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: onPick,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: has
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : AppColors.neutral100,
+                    foregroundColor:
+                        has ? AppColors.primary : AppColors.neutral900,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  icon: uploading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          has
+                              ? Icons.check_circle_outline
+                              : Icons.add_photo_alternate_outlined,
+                          size: 20,
                         ),
-                      )
-                    : AppImage(
-                        imageUrl,
-                        fallback: const ColoredBox(
-                          color: AppColors.neutral100,
-                          child: Center(
-                            child: Icon(
-                              Icons.add_photo_alternate_outlined,
-                              color: AppColors.neutral500,
-                              size: 30,
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              OutlinedButton.icon(
-                onPressed: onPick,
-                icon: const Icon(Icons.upload_outlined, size: 18),
-                label: Text(has ? 'Change' : 'Upload'),
-              ),
-              if (has)
-                TextButton(
-                  onPressed: onRemove,
-                  child: const Text(
-                    'Remove',
-                    style: TextStyle(color: AppColors.neutral500),
+                  label: Text(
+                    uploading
+                        ? 'Uploading...'
+                        : has
+                            ? 'Image added - tap to change'
+                            : 'Upload channel image',
                   ),
                 ),
-              const Text(
-                'Shown on Browse. JPG or PNG, up to 5 MB.',
-                style: TextStyle(color: AppColors.neutral500, fontSize: 12.5),
+              ),
+            ),
+            if (has && !uploading) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Remove image',
+                onPressed: busy ? null : onRemove,
+                icon: const Icon(Icons.close, color: AppColors.neutral500),
               ),
             ],
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(left: 2, top: 6),
+          child: Text(
+            'Shown on Browse. JPG or PNG, up to 5 MB.',
+            style: TextStyle(color: AppColors.neutral500, fontSize: 12.5),
           ),
         ),
       ],
@@ -933,9 +962,9 @@ class _ViewPostFields extends StatelessWidget {
   }
 }
 
-/// Read-only preview of a channel before it is submitted for approval.
-/// Shows a PENDING status. "Go back and edit" returns false; "Submit for
-/// approval" returns true so the create screen performs the actual submit.
+/// Read-only preview of a channel before it is submitted: the same page the
+/// owner will see, with a PENDING status. "Go back and edit" returns false;
+/// "Submit" returns true so the create screen performs the actual submit.
 class ChannelPreviewScreen extends StatelessWidget {
   const ChannelPreviewScreen({super.key, required this.account});
 
@@ -943,160 +972,58 @@ class ChannelPreviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Fmt.platformColor(account.accountType);
-    final top = account.topViewedPost;
-    final week = account.weeklyTopViewedPost;
+    ButtonStyle style(Color bg, Color fg) => FilledButton.styleFrom(
+      backgroundColor: bg,
+      foregroundColor: fg,
+      elevation: 0,
+      minimumSize: const Size.fromHeight(54),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Review channel')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if ((account.imageURL ?? '').isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: SizedBox(
-                    height: 180,
-                    child: AppImage(account.imageURL),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Row(
-                children: [
-                  PlatformLogo(account.accountType, size: 20, color: color),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      account.title ?? 'Channel',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.neutral900,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Text(
-                      'Pending',
-                      style: TextStyle(
-                        color: Color(0xFF92400E),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _PreviewRow(label: 'Platform', value: account.accountType?.label),
-              _PreviewRow(
-                  label: 'Category', value: account.category?.categoryName),
-              _PreviewRow(label: 'Description', value: account.description),
-              _PreviewLink(label: 'Channel link', url: account.accountURL),
-              _PreviewRow(
-                label: 'Audience',
-                value: Fmt.compact(account.audienceCount),
-              ),
-              _PreviewRow(
-                label: 'Views / post',
-                value:
-                    '${account.minViewPerPostCount} – ${account.maxViewPerPostCount}',
-              ),
-              if (top != null)
-                _PreviewLink(
-                  label: 'Top viewed post',
-                  url: top.url,
-                  trailing: '${Fmt.compact(top.count)} views',
-                ),
-              if (week != null)
-                _PreviewLink(
-                  label: "This week's top viewed",
-                  url: week.url,
-                  trailing: '${Fmt.compact(week.count)} views',
-                ),
-              if (account.priceOptions.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'Pricing',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.neutral900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                ...account.priceOptions.map(
-                  (p) => _PreviewRow(
-                    label: p.priceType?.label ?? 'Price',
-                    value: Fmt.birr(p.cost),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Go back and edit'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Submit for approval'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PreviewRow extends StatelessWidget {
-  const _PreviewRow({required this.label, required this.value});
-  final String label;
-  final String? value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.white,
+      body: Column(
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.neutral500,
-                fontSize: 13.5,
+          Expanded(
+            child: ChannelDetailView(
+              account: account,
+              leading: HeaderIconButton(
+                icon: Icons.arrow_back,
+                tooltip: 'Back',
+                onPressed: () => Navigator.of(context).pop(false),
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              (value ?? '').isEmpty ? '—' : value!,
-              style: const TextStyle(
-                color: AppColors.neutral900,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: AppColors.neutral200)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              12 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: style(AppColors.neutral100, AppColors.neutral900),
+                    child: const Text('Go back and edit'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: style(AppColors.primary, Colors.white),
+                    child: const Text('Submit'),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1105,45 +1032,50 @@ class _PreviewRow extends StatelessWidget {
   }
 }
 
-class _PreviewLink extends StatelessWidget {
-  const _PreviewLink({required this.label, required this.url, this.trailing});
-  final String label;
-  final String? url;
-  final String? trailing;
+/// Section title with a short helper line and an optional action on the right.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.neutral500,
-                fontSize: 13.5,
-              ),
-            ),
-          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LinkText(url: url),
-                if (trailing != null)
-                  Text(
-                    trailing!,
-                    style: const TextStyle(
-                      color: AppColors.neutral500,
-                      fontSize: 12.5,
-                    ),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF111111),
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.6,
                   ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.neutral500,
+                    fontSize: 13.5,
+                  ),
+                ),
               ],
             ),
           ),
+          ?trailing,
         ],
       ),
     );

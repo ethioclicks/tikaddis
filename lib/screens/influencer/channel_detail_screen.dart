@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
-import '../../core/links.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
-import '../../widgets/hex_pattern.dart';
+import '../../widgets/channel_detail_view.dart';
+import '../../widgets/shimmer.dart';
 
 /// Platform-themed detail page for an influencer's own channel, with
 /// edit + delete management.
@@ -25,12 +25,127 @@ class ChannelDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.neutral50,
       body: detail.when(
-        loading: () => const LoadingView(),
+        loading: () => const _DetailSkeleton(),
         error: (e, _) => ErrorView(
           message: 'Could not load this channel.',
           onRetry: () => ref.invalidate(accountDetailProvider(accountId)),
         ),
         data: (account) => _Detail(account: account),
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholder with the same layout as the loaded page: a full
+/// width photo with round buttons, the white sheet with the name, the fact
+/// bar, the price row and a few content blocks. The back arrow stays usable.
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    const base = kSkeletonBase;
+    final top = MediaQuery.of(context).padding.top;
+    const overlap = ChannelDetailView.sheetOverlap;
+
+    Widget block(double h) => SkeletonBox(
+      width: double.infinity,
+      height: h,
+      radius: 18,
+      color: kSkeletonLight,
+    );
+
+    final content = ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      children: [
+        SkeletonBox(
+          width: double.infinity,
+          height: top + ChannelDetailView.photoHeight,
+          radius: 0,
+        ),
+        Transform.translate(
+          offset: const Offset(0, -overlap),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBox(width: 170, height: 24, radius: 8, color: base),
+                          SizedBox(height: 10),
+                          SkeletonBox(width: 110, height: 14, radius: 6, color: base),
+                        ],
+                      ),
+                    ),
+                    SkeletonBox(width: 88, height: 50, radius: 14, color: base),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                block(84),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBox(width: 80, height: 12, radius: 6, color: base),
+                          SizedBox(height: 8),
+                          SkeletonBox(width: 130, height: 26, radius: 8, color: base),
+                        ],
+                      ),
+                    ),
+                    SkeletonBox(width: 140, height: 52, radius: 26, color: base),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                const SkeletonBox(width: 70, height: 18, radius: 6, color: base),
+                const SizedBox(height: 14),
+                const SkeletonBox(width: double.infinity, height: 14, radius: 6, color: kSkeletonLight),
+                const SizedBox(height: 8),
+                const SkeletonBox(width: 240, height: 14, radius: 6, color: kSkeletonLight),
+                const SizedBox(height: 28),
+                const SkeletonBox(width: 90, height: 18, radius: 6, color: base),
+                const SizedBox(height: 14),
+                block(78),
+                const SizedBox(height: 10),
+                block(78),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return Semantics(
+      label: 'Loading channel',
+      child: Stack(
+        children: [
+          ExcludeSemantics(child: Shimmer(child: content)),
+          Positioned(
+            top: top + 8,
+            left: 12,
+            child: IconButton(
+              tooltip: 'Back',
+              onPressed: () => context.pop(),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.92),
+                fixedSize: const Size(44, 44),
+              ),
+              icon: const Icon(Icons.arrow_back, color: AppColors.neutral900),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -90,348 +205,27 @@ class _Detail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final color = Fmt.platformColor(account.accountType);
-
-    return CustomScrollView(
-      slivers: [
-        // Platform-themed hero header.
-        SliverToBoxAdapter(
-          child: Container(
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(28),
-                bottomRight: Radius.circular(28),
-              ),
-            ),
-            child: HexBackground(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(28),
-                bottomRight: Radius.circular(28),
-              ),
-              opacity: 0.1,
-              radius: 44,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  MediaQuery.of(context).padding.top + 8,
-                  16,
-                  28,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => context.pop(),
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          tooltip: 'Edit',
-                          onPressed: () => context.push(
-                            '/influencer/accounts/edit',
-                            extra: account,
-                          ),
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            color: Colors.white,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Delete',
-                          onPressed: () => _delete(context, ref),
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.20),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            Fmt.platformIcon(account.accountType),
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                account.title ?? 'Untitled',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                account.accountType?.label ?? '',
-                                style: const TextStyle(
-                                  color: Color(0xE6FFFFFF),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _ApprovalPill(approved: account.approved),
-                  ],
-                ),
-              ),
-            ),
-          ),
+    return ChannelDetailView(
+      account: account,
+      bottomPadding: 100,
+      leading: HeaderIconButton(
+        icon: Icons.arrow_back,
+        tooltip: 'Back',
+        onPressed: () => context.pop(),
+      ),
+      actions: [
+        HeaderIconButton(
+          icon: Icons.edit_outlined,
+          tooltip: 'Edit',
+          onPressed: () =>
+              context.push('/influencer/accounts/edit', extra: account),
         ),
-
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          sliver: SliverList.list(
-            children: [
-              if ((account.description ?? '').isNotEmpty) ...[
-                _CardSection(
-                  child: Text(
-                    account.description!,
-                    style: const TextStyle(
-                      color: AppColors.neutral700,
-                      fontSize: 14.5,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatTile(
-                      icon: Icons.group_outlined,
-                      value: Fmt.compact(account.audienceCount),
-                      label: 'Audience',
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatTile(
-                      icon: Icons.visibility_outlined,
-                      value: account.maxViewPerPostCount > 0
-                          ? '${Fmt.compact(account.minViewPerPostCount)}–${Fmt.compact(account.maxViewPerPostCount)}'
-                          : '—',
-                      label: 'Views / post',
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if ((account.accountURL ?? '').isNotEmpty)
-                _CardSection(
-                  child: Row(
-                    children: [
-                      Icon(Icons.link, size: 20, color: color),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: LinkText(
-                          url: account.accountURL,
-                          style: const TextStyle(fontSize: 13.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 20),
-              const Text(
-                'Pricing',
-                style: TextStyle(
-                  color: AppColors.neutral900,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 10),
-              if (account.priceOptions.isEmpty)
-                const Text(
-                  'No pricing listed.',
-                  style: TextStyle(color: AppColors.neutral500),
-                )
-              else
-                ...account.priceOptions.map((p) => _PriceRow(option: p)),
-            ],
-          ),
+        HeaderIconButton(
+          icon: Icons.delete_outline,
+          tooltip: 'Delete',
+          onPressed: () => _delete(context, ref),
         ),
       ],
-    );
-  }
-}
-
-class _ApprovalPill extends StatelessWidget {
-  const _ApprovalPill({required this.approved});
-  final bool approved;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            approved ? Icons.verified : Icons.schedule,
-            size: 15,
-            color: Colors.white,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            approved ? 'Approved' : 'Pending approval',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CardSection extends StatelessWidget {
-  const _CardSection({required this.child});
-  final Widget child;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.neutral900,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.neutral500, fontSize: 12.5),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PriceRow extends StatelessWidget {
-  const _PriceRow({required this.option});
-  final PriceOptions option;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  option.priceType?.label ?? 'Price',
-                  style: const TextStyle(
-                    color: AppColors.neutral900,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if ((option.remark ?? '').isNotEmpty)
-                  Text(
-                    option.remark!,
-                    style: const TextStyle(
-                      color: AppColors.neutral500,
-                      fontSize: 12.5,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Text(
-            Fmt.birr(option.cost),
-            style: const TextStyle(
-              color: AppColors.accentHover,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

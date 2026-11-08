@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/app_image.dart';
+import '../../widgets/shimmer.dart';
 
 /// Business owner's promotions — editorial: bold headline, search, filter
 /// tabs, and image-forward request cards.
@@ -39,16 +40,32 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
       backgroundColor: Colors.white,
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () async => ref.invalidate(myPromotionsProvider(null)),
+        onRefresh: () async {
+          ref.invalidate(myPromotionsProvider(null));
+          try {
+            await ref.read(myPromotionsProvider(null).future);
+          } catch (_) {
+            // The error view takes over; nothing to do here.
+          }
+        },
         child: promotions.when(
-          loading: () => const LoadingView(),
+          // While loading, the page (title, search, filters) is already there
+          // and only the cards shimmer.
+          loading: () => _list(null),
           error: (e, _) => ErrorView(
             message: 'Could not load your promotions.',
             onRetry: () => ref.invalidate(myPromotionsProvider(null)),
           ),
-          data: (all) {
+          data: _list,
+        ),
+      ),
+    );
+  }
+
+  /// The page. [all] is null while the promotions are still loading.
+  Widget _list(List<PromotionRequest>? all) {
             final q = _query.trim().toLowerCase();
-            final rows = all.where((r) {
+            final rows = (all ?? const <PromotionRequest>[]).where((r) {
               final matchesStatus = _filter == null || r.status == _filter;
               final title = (r.influencerAccount?.title ?? '').toLowerCase();
               final text = (r.promotionText ?? '').toLowerCase();
@@ -57,7 +74,7 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
               return matchesStatus && matchesQuery;
             }).toList();
 
-            final activeCount = all
+            final activeCount = (all ?? const <PromotionRequest>[])
                 .where(
                   (r) =>
                       r.status == PromotionStatus.running ||
@@ -67,7 +84,9 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
                 .length;
 
             return ListView(
-              physics: const BouncingScrollPhysics(
+              // Pulling down never moves or stretches the page; only the
+              // refresh spinner appears over the top.
+              physics: const ClampingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
               padding: const EdgeInsets.only(bottom: 100),
@@ -89,13 +108,26 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '${all.length} total  ·  $activeCount active',
-                          style: const TextStyle(
-                            color: AppColors.neutral500,
-                            fontSize: 14,
+                        if (all == null)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 2),
+                            child: Shimmer(
+                              child: SkeletonBox(
+                                width: 130,
+                                height: 14,
+                                radius: 6,
+                                color: kSkeletonBase,
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            '${all.length} total  ·  $activeCount active',
+                            style: const TextStyle(
+                              color: AppColors.neutral500,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 18),
                         _SearchBar(
                           onChanged: (v) => setState(() => _query = v),
@@ -111,7 +143,9 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
                   onSelected: (s) => setState(() => _filter = s),
                 ),
                 const SizedBox(height: 20),
-                if (rows.isEmpty)
+                if (all == null)
+                  const _PromotionSkeletons()
+                else if (rows.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 48),
                     child: EmptyView(
@@ -142,7 +176,72 @@ class _MyPromotionsScreenState extends ConsumerState<MyPromotionsScreen> {
                   ),
               ],
             );
-          },
+  }
+}
+
+/// Shimmering placeholders for the promotion cards (same size and layout).
+class _PromotionSkeletons extends StatelessWidget {
+  const _PromotionSkeletons();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card() => Container(
+      height: 162,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SkeletonBox(width: 46, height: 46, circle: true, color: kSkeletonBase),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 130, height: 16, radius: 6, color: kSkeletonBase),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 70, height: 12, radius: 6, color: kSkeletonBase),
+                  ],
+                ),
+              ),
+              SkeletonBox(width: 96, height: 28, radius: 14, color: kSkeletonBase),
+            ],
+          ),
+          SizedBox(height: 14),
+          SkeletonBox(width: 180, height: 13, radius: 6, color: kSkeletonBase),
+          Spacer(),
+          Row(
+            children: [
+              SkeletonBox(width: 150, height: 13, radius: 6, color: kSkeletonBase),
+              Spacer(),
+              SkeletonBox(width: 56, height: 15, radius: 6, color: kSkeletonBase),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return Semantics(
+      label: 'Loading your promotions',
+      child: ExcludeSemantics(
+        child: Shimmer(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                for (var i = 0; i < 3; i++) ...[
+                  card(),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

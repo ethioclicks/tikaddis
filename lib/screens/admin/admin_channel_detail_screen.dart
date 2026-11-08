@@ -14,6 +14,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/creator_profile_card.dart';
 import '../../widgets/dots_loading.dart';
 import '../../widgets/platform_logo.dart';
+import '../../widgets/shimmer.dart';
 
 const Color _ink = Color(0xFF111111);
 
@@ -83,7 +84,7 @@ class _AdminChannelDetailScreenState
         ),
       ),
       body: detail.when(
-        loading: () => const LoadingView(),
+        loading: () => const _DetailSkeleton(),
         error: (e, _) => ErrorView(
           message: 'Could not load this channel.',
           onRetry: () => ref.invalidate(accountDetailProvider(widget.accountId)),
@@ -370,6 +371,103 @@ class _Body extends StatelessWidget {
             ],
           ),
       ],
+    );
+  }
+}
+
+/// Shimmering placeholder with the same layout as the loaded page: photo,
+/// title and tags, link, description, the three stat boxes, Pricing, and the
+/// Review section with its two buttons.
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    const base = kSkeletonBase;
+    const light = kSkeletonLight;
+
+    Widget stat() => Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: light,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Column(
+          children: [
+            SkeletonBox(width: 48, height: 18, radius: 6, color: base),
+            SizedBox(height: 8),
+            SkeletonBox(width: 62, height: 12, radius: 6, color: base),
+          ],
+        ),
+      ),
+    );
+
+    return Semantics(
+      label: 'Loading channel',
+      child: ExcludeSemantics(
+        child: Shimmer(
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            children: [
+              // Photo.
+              const SkeletonBox(height: 210, radius: 24, color: base),
+              const SizedBox(height: 16),
+              // Title and tags.
+              const SkeletonBox(width: 190, height: 26, radius: 8, color: base),
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SkeletonBox(width: 104, height: 32, radius: 16, color: base),
+                  SizedBox(width: 8),
+                  SkeletonBox(width: 90, height: 32, radius: 16, color: base),
+                  SizedBox(width: 8),
+                  SkeletonBox(width: 82, height: 32, radius: 16, color: base),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // Link and description.
+              const SkeletonBox(width: 210, height: 16, radius: 6, color: base),
+              const SizedBox(height: 16),
+              const SkeletonBox(width: 240, height: 14, radius: 6, color: base),
+              const SizedBox(height: 18),
+              // Stats.
+              Row(
+                children: [
+                  stat(),
+                  const SizedBox(width: 10),
+                  stat(),
+                  const SizedBox(width: 10),
+                  stat(),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Pricing.
+              const SkeletonBox(width: 80, height: 20, radius: 7, color: base),
+              const SizedBox(height: 10),
+              const SkeletonBox(height: 50, radius: 16, color: base),
+              const SizedBox(height: 28),
+              // Review: switch row and the two buttons.
+              const SkeletonBox(width: 80, height: 20, radius: 7, color: base),
+              const SizedBox(height: 12),
+              const SkeletonBox(height: 78, radius: 18, color: base),
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  Expanded(
+                    child: SkeletonBox(height: 52, radius: 26, color: base),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: SkeletonBox(height: 52, radius: 26, color: base),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

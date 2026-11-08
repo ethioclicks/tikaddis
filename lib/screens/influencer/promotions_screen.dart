@@ -10,6 +10,7 @@ import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/dots_loading.dart';
+import '../../widgets/shimmer.dart';
 
 /// Incoming promotion requests for the influencer's accounts, with
 /// approve/reject actions (account-owner stage of the pipeline).
@@ -44,7 +45,7 @@ class PromotionsScreen extends ConsumerWidget {
           ),
           Expanded(
             child: requests.when(
-              loading: () => const LoadingView(),
+              loading: () => const _RequestSkeletons(),
               error: (e, _) => ErrorView(
                 message: 'Could not load requests.',
                 onRetry: () => ref.invalidate(influencerRequestsProvider),
@@ -260,6 +261,80 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholders with the same layout as the request cards: channel
+/// row with status, the brief lines, the dates and the two action buttons.
+class _RequestSkeletons extends StatelessWidget {
+  const _RequestSkeletons();
+
+  @override
+  Widget build(BuildContext context) {
+    const base = kSkeletonBase;
+
+    Widget card() => Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SkeletonBox(width: 18, height: 18, radius: 5, color: base),
+              SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SkeletonBox(width: 140, height: 16, radius: 6, color: base),
+                ),
+              ),
+              SkeletonBox(width: 86, height: 26, radius: 13, color: base),
+            ],
+          ),
+          SizedBox(height: 14),
+          SkeletonBox(width: double.infinity, height: 13, radius: 6, color: base),
+          SizedBox(height: 8),
+          SkeletonBox(width: 220, height: 13, radius: 6, color: base),
+          SizedBox(height: 14),
+          SkeletonBox(width: 150, height: 12, radius: 6, color: base),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: SkeletonBox(width: double.infinity, height: 44, radius: 22, color: base),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: SkeletonBox(width: double.infinity, height: 44, radius: 22, color: base),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return Semantics(
+      label: 'Loading requests',
+      child: ExcludeSemantics(
+        child: Shimmer(
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                card(),
+                const SizedBox(height: 12),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

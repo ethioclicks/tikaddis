@@ -38,8 +38,21 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(myPromotionsProvider);
             ref.invalidate(profileProvider);
             ref.invalidate(myAccountsProvider);
+            try {
+              await Future.wait([
+                ref.read(profileProvider.future),
+                ref.read(myAccountsProvider.future),
+              ]);
+            } catch (_) {
+              // The sections show their own error text.
+            }
           },
           child: ListView(
+            // Pulling down never moves or stretches the page; only the
+            // refresh spinner appears over the top.
+            physics: const ClampingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: EdgeInsets.zero,
             children: [
               const _Header(),

@@ -51,6 +51,7 @@ class CreatorProfileCard extends StatefulWidget {
     this.style = CreatorCardStyle.light,
     this.ctaLabel,
     this.onCta,
+    this.showAbout = true,
   });
 
   final String name;
@@ -79,6 +80,10 @@ class CreatorProfileCard extends StatefulWidget {
   /// Label and action of the big pill at the bottom. Both must be set.
   final String? ctaLabel;
   final VoidCallback? onCta;
+
+  /// Whether to show the "About" section. Turn it off for people who are not
+  /// creators and so have no biography to show.
+  final bool showAbout;
 
   @override
   State<CreatorProfileCard> createState() => _CreatorProfileCardState();
@@ -159,6 +164,7 @@ class _CreatorProfileCardState extends State<CreatorProfileCard> {
           const SizedBox(height: 12),
           Divider(height: 1, thickness: 1, color: _p.divider),
         ],
+        if (widget.showAbout) ...[
         const SizedBox(height: 14),
         Text(
           'About',
@@ -201,6 +207,7 @@ class _CreatorProfileCardState extends State<CreatorProfileCard> {
                 ),
               ),
             ),
+        ],
         ],
         if (widget.gallery.isNotEmpty) ...[
           const SizedBox(height: 16),
