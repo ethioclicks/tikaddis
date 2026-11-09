@@ -74,7 +74,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final content = accounts.when(
       loading: () => <Widget>[
         if (featuredLoading) ..._featuredSection(null, loading: true),
-        const _SectionTitle('Top creators'),
+        const _SectionTitle('Channels'),
         const SizedBox(height: 12),
         for (var i = 0; i < 4; i++) const _RowSkeleton(),
       ],
@@ -110,7 +110,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             ..._featuredSection(featured, loading: featuredLoading),
           if (!searching && (creatorsLoading || creators.isNotEmpty))
             ..._creatorsSection(creators, loading: creatorsLoading),
-          _SectionTitle(searching ? '${rows.length} results' : 'Top creators'),
+          _SectionTitle(searching ? '${rows.length} results' : 'Channels'),
           const SizedBox(height: 12),
           if (rows.isEmpty)
             Padding(

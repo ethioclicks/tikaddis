@@ -75,7 +75,7 @@ class _CreatorsScreenState extends ConsumerState<CreatorsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           sliver: SliverGrid.builder(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
+              crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               mainAxisExtent: _cardHeight,
@@ -292,8 +292,6 @@ class _GridSkeleton extends StatelessWidget {
                 for (var i = 0; i < 3; i++) ...[
                   Row(
                     children: [
-                      card(),
-                      const SizedBox(width: 12),
                       card(),
                       const SizedBox(width: 12),
                       card(),
